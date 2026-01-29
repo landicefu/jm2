@@ -1,0 +1,54 @@
+{
+  "name": "jm2",
+  "version": "0.1.0",
+  "description": "Job Manager 2 - A simple yet powerful job scheduler combining cron and at functionality",
+  "type": "module",
+  "main": "src/cli/index.js",
+  "bin": {
+    "jm2": "./bin/jm2.js"
+  },
+  "scripts": {
+    "start": "node src/daemon/index.js",
+    "test": "vitest",
+    "test:run": "vitest run",
+    "test:coverage": "vitest run --coverage",
+    "lint": "eslint src/ bin/ tests/",
+    "lint:fix": "eslint src/ bin/ tests/ --fix"
+  },
+  "keywords": [
+    "cron",
+    "scheduler",
+    "job",
+    "task",
+    "daemon",
+    "cli",
+    "at",
+    "periodic",
+    "timer"
+  ],
+  "author": "",
+  "license": "MIT",
+  "engines": {
+    "node": ">=20.0.0"
+  },
+  "dependencies": {
+    "chalk": "^5.4.1",
+    "cli-table3": "^0.6.5",
+    "commander": "^14.0.2",
+    "cron-parser": "^5.4.0",
+    "dayjs": "^1.11.19",
+    "ora": "^9.0.0"
+  },
+  "devDependencies": {
+    "eslint": "^9.20.0",
+    "vitest": "^4.0.18"
+  },
+  "repository": {
+    "type": "git",
+    "url": ""
+  },
+  "bugs": {
+    "url": ""
+  },
+  "homepage": ""
+}

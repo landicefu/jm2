@@ -1,0 +1,582 @@
+# jm2 - Job Manager 2
+
+A simple yet powerful job scheduler for Node.js, combining the functionality of `cron` (periodic tasks) and `at` (one-time tasks). Designed to be as easy to use as pm2.
+
+## Features
+
+- 🔄 **Periodic Jobs** - Schedule recurring tasks using cron expressions
+- ⏰ **One-time Jobs** - Schedule tasks to run once at a specific time
+- 💾 **Persistent Storage** - Jobs survive daemon restarts and system reboots
+- 🖥️ **Simple CLI** - Intuitive command-line interface inspired by pm2
+- 📊 **Job Monitoring** - View job status, history, and logs
+- 🏷️ **Job Tagging** - Organize jobs with tags for easy management
+
+## Installation
+
+```bash
+npm install -g jm2
+```
+
+## Quick Start
+
+```bash
+# Start the daemon
+jm2 start
+
+# Add a periodic job (runs every minute)
+jm2 add "echo 'Hello World'" --cron "* * * * *" --name hello
+
+# Add a one-time job (runs at specific time)
+jm2 add "node backup.js" --at "2024-12-25 10:00" --name christmas-backup
+
+# List all jobs
+jm2 list
+
+# Stop the daemon
+jm2 stop
+```
+
+## CLI Reference
+
+### Daemon Management
+
+#### `jm2 start`
+Start the jm2 daemon process.
+
+```bash
+jm2 start
+```
+
+Options:
+- `--foreground, -f` - Run in foreground (don't daemonize)
+
+#### `jm2 stop`
+Stop the jm2 daemon process.
+
+```bash
+jm2 stop
+```
+
+#### `jm2 restart`
+Restart the jm2 daemon process.
+
+```bash
+jm2 restart
+```
+
+#### `jm2 status`
+Show daemon status and statistics.
+
+```bash
+jm2 status
+```
+
+Output example:
+```
+jm2 Daemon Status
+─────────────────────────────────
+Status:     Running
+PID:        12345
+Uptime:     2d 5h 30m
+Jobs:       15 total (10 active, 5 paused)
+Executed:   1,234 runs today
+```
+
+### Job Management
+
+#### `jm2 add <command>`
+Add a new scheduled job.
+
+```bash
+# Periodic job with cron expression
+jm2 add "npm run backup" --cron "0 2 * * *" --name nightly-backup
+
+# One-time job at specific datetime
+jm2 add "node deploy.js" --at "2024-12-25 10:00" --name deploy
+
+# One-time job with relative time
+jm2 add "echo 'reminder'" --in "30m" --name reminder
+
+# Job without name (auto-generates job-1, job-2, etc.)
+jm2 add "echo 'quick task'" --in "5m"
+
+# Job with duplicate name handling
+jm2 add "npm run backup" --cron "0 3 * * *" --name backup --auto-suffix
+# If "backup" exists, creates "backup-2", "backup-3", etc.
+
+# Job with tags
+jm2 add "npm test" --cron "0 * * * *" --name hourly-test --tag ci --tag testing
+
+# Job with working directory
+jm2 add "npm run build" --cron "0 0 * * *" --name build --cwd /path/to/project
+
+# Job with environment variables
+jm2 add "node app.js" --cron "*/5 * * * *" --name app --env NODE_ENV=production --env PORT=3000
+```
+
+Options:
+- `--cron, -c <expression>` - Cron expression for periodic jobs
+- `--at, -a <datetime>` - Specific datetime for one-time jobs (see [Datetime Format](#datetime-format-for---at))
+- `--in, -i <duration>` - Relative time for one-time jobs (e.g., "30m", "2h", "1d")
+- `--name, -n <name>` - Job name (optional, auto-generates `job-1`, `job-2`, etc. if not provided). **Error if name already exists** unless `--auto-suffix` is used
+- `--auto-suffix` - Auto-add suffix (`-2`, `-3`, etc.) if name already exists
+- `--tag, -t <tag>` - Add tag(s) to the job (can be used multiple times)
+- `--cwd <path>` - Working directory for the command
+- `--env, -e <KEY=value>` - Environment variable (can be used multiple times)
+- `--shell <shell>` - Shell to use (default: /bin/sh on Unix, cmd.exe on Windows)
+- `--timeout <duration>` - Maximum execution time (e.g., "5m", "1h")
+- `--retry <count>` - Number of retries on failure (default: 0)
+- `--paused` - Add job in paused state
+
+#### `jm2 list`
+List all scheduled jobs.
+
+```bash
+# List all jobs
+jm2 list
+
+# List jobs with specific tag
+jm2 list --tag backup
+
+# List only active jobs
+jm2 list --active
+
+# List only paused jobs
+jm2 list --paused
+
+# Show detailed output
+jm2 list --verbose
+```
+
+Options:
+- `--tag, -t <tag>` - Filter by tag
+- `--active` - Show only active jobs
+- `--paused` - Show only paused jobs
+- `--verbose, -v` - Show detailed information
+
+Output example:
+```
+┌────┬──────────────────┬────────┬─────────────────┬──────────────────────┬────────────┐
+│ ID │ Name             │ Status │ Schedule        │ Next Run             │ Last Run   │
+├────┼──────────────────┼────────┼─────────────────┼──────────────────────┼────────────┤
+│ 1  │ nightly-backup   │ active │ 0 2 * * *       │ 2024-12-20 02:00:00  │ 2h ago     │
+│ 2  │ hourly-test      │ active │ 0 * * * *       │ 2024-12-19 15:00:00  │ 45m ago    │
+│ 3  │ deploy           │ active │ at 2024-12-25   │ 2024-12-25 10:00:00  │ never      │
+│ 4  │ old-task         │ paused │ */5 * * * *     │ -                    │ 3d ago     │
+└────┴──────────────────┴────────┴─────────────────┴──────────────────────┴────────────┘
+```
+
+#### `jm2 show <id|name>`
+Show detailed information about a specific job.
+
+```bash
+jm2 show nightly-backup
+jm2 show 1
+```
+
+Output example:
+```
+Job: nightly-backup (ID: 1)
+───────────────────────────────────
+Command:    npm run backup
+Schedule:   0 2 * * * (cron)
+Status:     active
+Created:    2024-12-01 10:30:00
+Tags:       backup, database
+
+Working Dir: /home/user/project
+Environment:
+  NODE_ENV=production
+  DB_HOST=localhost
+
+Execution History (last 5):
+  ✓ 2024-12-19 02:00:00 - completed in 45s (exit: 0)
+  ✓ 2024-12-18 02:00:00 - completed in 42s (exit: 0)
+  ✗ 2024-12-17 02:00:00 - failed in 12s (exit: 1)
+  ✓ 2024-12-16 02:00:00 - completed in 44s (exit: 0)
+  ✓ 2024-12-15 02:00:00 - completed in 43s (exit: 0)
+
+Next Run:   2024-12-20 02:00:00 (in 8h 30m)
+```
+
+#### `jm2 remove <id|name>`
+Remove a scheduled job.
+
+```bash
+jm2 remove nightly-backup
+jm2 remove 1
+
+# Remove multiple jobs
+jm2 remove 1 2 3
+
+# Remove by tag
+jm2 remove --tag old-jobs
+
+# Force remove without confirmation
+jm2 remove nightly-backup --force
+```
+
+Options:
+- `--tag, -t <tag>` - Remove all jobs with this tag
+- `--force, -f` - Skip confirmation prompt
+
+#### `jm2 pause <id|name>`
+Pause a scheduled job.
+
+```bash
+jm2 pause nightly-backup
+jm2 pause 1
+
+# Pause multiple jobs
+jm2 pause 1 2 3
+
+# Pause by tag
+jm2 pause --tag testing
+```
+
+Options:
+- `--tag, -t <tag>` - Pause all jobs with this tag
+
+#### `jm2 resume <id|name>`
+Resume a paused job.
+
+```bash
+jm2 resume nightly-backup
+jm2 resume 1
+
+# Resume multiple jobs
+jm2 resume 1 2 3
+
+# Resume by tag
+jm2 resume --tag testing
+```
+
+Options:
+- `--tag, -t <tag>` - Resume all jobs with this tag
+
+#### `jm2 run <id|name>`
+Manually trigger a job to run immediately.
+
+```bash
+jm2 run nightly-backup
+jm2 run 1
+```
+
+Options:
+- `--wait, -w` - Wait for job to complete and show output
+
+#### `jm2 edit <id|name>`
+Edit an existing job's configuration.
+
+```bash
+# Change cron schedule
+jm2 edit nightly-backup --cron "0 3 * * *"
+
+# Change command
+jm2 edit nightly-backup --command "npm run full-backup"
+
+# Add/remove tags
+jm2 edit nightly-backup --tag important --untag old
+
+# Change working directory
+jm2 edit nightly-backup --cwd /new/path
+```
+
+Options:
+- `--cron, -c <expression>` - New cron expression
+- `--at, -a <datetime>` - Convert to one-time job at datetime
+- `--command <cmd>` - New command to execute
+- `--name, -n <name>` - Rename the job
+- `--tag, -t <tag>` - Add tag (can be used multiple times)
+- `--untag <tag>` - Remove tag (can be used multiple times)
+- `--cwd <path>` - New working directory
+- `--env, -e <KEY=value>` - Set/update environment variable
+- `--unenv <KEY>` - Remove environment variable
+- `--timeout <duration>` - New timeout value
+- `--retry <count>` - New retry count
+
+### Logs and History
+
+#### `jm2 logs [id|name]`
+View job execution logs.
+
+```bash
+# View all recent logs
+jm2 logs
+
+# View logs for specific job
+jm2 logs nightly-backup
+
+# Follow logs in real-time
+jm2 logs --follow
+
+# Show last N lines
+jm2 logs --lines 100
+
+# Filter by date
+jm2 logs --since "2024-12-01"
+jm2 logs --until "2024-12-15"
+```
+
+Options:
+- `--follow, -f` - Follow log output in real-time
+- `--lines, -n <count>` - Number of lines to show (default: 50)
+- `--since <datetime>` - Show logs since datetime
+- `--until <datetime>` - Show logs until datetime
+- `--errors` - Show only error logs
+
+#### `jm2 history [id|name]`
+View job execution history.
+
+```bash
+# View all execution history
+jm2 history
+
+# View history for specific job
+jm2 history nightly-backup
+
+# Show last N executions
+jm2 history --count 20
+```
+
+Options:
+- `--count, -c <number>` - Number of executions to show (default: 10)
+- `--failed` - Show only failed executions
+- `--success` - Show only successful executions
+
+### Utility Commands
+
+#### `jm2 flush`
+Clear completed one-time jobs and old logs.
+
+```bash
+# Clear completed one-time jobs
+jm2 flush
+
+# Clear logs older than 30 days
+jm2 flush --logs --days 30
+
+# Clear all history
+jm2 flush --history
+
+# Force without confirmation
+jm2 flush --force
+```
+
+Options:
+- `--logs` - Clear old log files
+- `--history` - Clear execution history
+- `--days <number>` - Clear items older than N days (default: 7)
+- `--force, -f` - Skip confirmation prompt
+
+#### `jm2 export`
+Export jobs configuration.
+
+```bash
+# Export to stdout
+jm2 export
+
+# Export to file
+jm2 export --output jobs.json
+
+# Export specific jobs
+jm2 export --tag production
+```
+
+Options:
+- `--output, -o <file>` - Output file path
+- `--tag, -t <tag>` - Export only jobs with this tag
+
+#### `jm2 import`
+Import jobs from configuration file.
+
+```bash
+jm2 import jobs.json
+
+# Merge with existing jobs
+jm2 import jobs.json --merge
+
+# Replace all existing jobs
+jm2 import jobs.json --replace
+```
+
+Options:
+- `--merge` - Merge with existing jobs (default)
+- `--replace` - Replace all existing jobs
+
+## Cron Expression Reference
+
+```
+┌───────────── minute (0 - 59)
+│ ┌───────────── hour (0 - 23)
+│ │ ┌───────────── day of month (1 - 31)
+│ │ │ ┌───────────── month (1 - 12)
+│ │ │ │ ┌───────────── day of week (0 - 6) (Sunday to Saturday)
+│ │ │ │ │
+│ │ │ │ │
+* * * * *
+```
+
+### Common Examples
+
+| Expression | Description |
+|------------|-------------|
+| `* * * * *` | Every minute |
+| `*/5 * * * *` | Every 5 minutes |
+| `0 * * * *` | Every hour |
+| `0 0 * * *` | Every day at midnight |
+| `0 2 * * *` | Every day at 2:00 AM |
+| `0 0 * * 0` | Every Sunday at midnight |
+| `0 0 1 * *` | First day of every month |
+| `0 9-17 * * 1-5` | Every hour from 9 AM to 5 PM, Monday to Friday |
+
+## Datetime Format for `--at`
+
+The `--at` option accepts flexible datetime formats:
+
+### Time Only (HH:mm or HH:mm:ss)
+Schedules for today, or **tomorrow if the time has already passed**.
+
+```bash
+# Schedule for 3:30 PM today (or tomorrow if it's past 3:30 PM)
+jm2 add "echo 'meeting'" --at "15:30" --name meeting
+
+# With seconds
+jm2 add "node task.js" --at "09:00:00" --name morning-task
+```
+
+### Date + Time (Full datetime)
+Schedules for the exact datetime. **Shows error if the time is in the past.**
+
+```bash
+# ISO 8601 format
+jm2 add "node deploy.js" --at "2024-12-25T10:00:00" --name deploy
+
+# Simple format
+jm2 add "npm run backup" --at "2024-12-25 10:00" --name backup
+
+# With seconds
+jm2 add "node task.js" --at "2024-12-25 10:00:00" --name task
+```
+
+### Date Only (YYYY-MM-DD)
+Schedules for midnight (00:00:00) on that date. **Shows error if the date is in the past.**
+
+```bash
+jm2 add "npm run report" --at "2024-12-31" --name year-end
+```
+
+### Supported Formats Summary
+
+| Format | Example | Behavior |
+|--------|---------|----------|
+| `HH:mm` | `15:30` | Today, or tomorrow if past |
+| `HH:mm:ss` | `15:30:00` | Today, or tomorrow if past |
+| `YYYY-MM-DD` | `2024-12-25` | Midnight on date (error if past) |
+| `YYYY-MM-DD HH:mm` | `2024-12-25 10:00` | Exact datetime (error if past) |
+| `YYYY-MM-DD HH:mm:ss` | `2024-12-25 10:00:00` | Exact datetime (error if past) |
+| `YYYY-MM-DDTHH:mm:ss` | `2024-12-25T10:00:00` | ISO 8601 (error if past) |
+
+## Duration Format
+
+For `--in`, `--timeout` options:
+
+| Format | Description |
+|--------|-------------|
+| `30s` | 30 seconds |
+| `5m` | 5 minutes |
+| `2h` | 2 hours |
+| `1d` | 1 day |
+| `1w` | 1 week |
+| `1h30m` | 1 hour and 30 minutes |
+
+## Configuration
+
+jm2 stores its data in `~/.jm2/`:
+
+```
+~/.jm2/
+├── config.json         # Daemon configuration
+├── jobs.json           # Job definitions
+├── daemon.pid          # Daemon process ID
+├── daemon.log          # Daemon logs
+└── logs/               # Job execution logs (named by task)
+    ├── nightly-backup.log
+    ├── hourly-test.log
+    ├── job-1.log       # Auto-generated name
+    └── job-2.log
+```
+
+### Configuration Options
+
+Edit `~/.jm2/config.json`:
+
+```json
+{
+  "logRetentionDays": 30,
+  "historyRetentionDays": 90,
+  "maxConcurrentJobs": 10,
+  "defaultShell": "/bin/bash",
+  "timezone": "UTC"
+}
+```
+
+## Exit Codes
+
+| Code | Description |
+|------|-------------|
+| 0 | Success |
+| 1 | General error |
+| 2 | Invalid arguments |
+| 3 | Daemon not running |
+| 4 | Job not found |
+| 5 | Permission denied |
+| 6 | Job name already exists |
+| 7 | Scheduled time is in the past |
+
+## Examples
+
+### Backup Database Every Night
+
+```bash
+jm2 add "pg_dump mydb > /backups/db-$(date +%Y%m%d).sql" \
+  --cron "0 2 * * *" \
+  --name db-backup \
+  --tag backup \
+  --tag database \
+  --cwd /home/user
+```
+
+### Run Tests Every Hour During Work Hours
+
+```bash
+jm2 add "npm test" \
+  --cron "0 9-17 * * 1-5" \
+  --name work-tests \
+  --tag testing \
+  --cwd /home/user/project \
+  --timeout 10m
+```
+
+### Schedule a One-time Deployment
+
+```bash
+jm2 add "npm run deploy:production" \
+  --at "2024-12-25 03:00" \
+  --name christmas-deploy \
+  --tag deployment \
+  --cwd /home/user/app \
+  --env NODE_ENV=production
+```
+
+### Set a Reminder in 30 Minutes
+
+```bash
+jm2 add "notify-send 'Meeting in 5 minutes!'" \
+  --in 30m \
+  --name meeting-reminder
+```
+
+## License
+
+MIT
