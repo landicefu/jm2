@@ -95,9 +95,9 @@ jm2/
 **Tasks:**
 - [x] Create package.json with dependencies
 - [x] Create .gitignore
-- [ ] Create `src/utils/paths.js` - Path utilities for ~/.jm2/
-- [ ] Create `src/utils/duration.js` - Duration parsing
-- [ ] Create `src/core/logger.js` - Basic logging
+- [x] Create `src/utils/paths.js` - Path utilities for ~/.jm2/
+- [x] Create `src/utils/duration.js` - Duration parsing
+- [x] Create `src/core/logger.js` - Basic logging
 
 **Test:**
 ```bash

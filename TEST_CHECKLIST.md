@@ -330,18 +330,18 @@ Complete verification checklist for all commands and options. Each item should b
 ## 13. Duration Parsing
 
 ### 13.1 Valid Formats
-- [ ] `30s` → 30 seconds
-- [ ] `5m` → 5 minutes
-- [ ] `2h` → 2 hours
-- [ ] `1d` → 1 day
-- [ ] `1w` → 1 week
-- [ ] `1h30m` → 1 hour 30 minutes
-- [ ] `2d12h` → 2 days 12 hours
+- [x] `30s` → 30 seconds
+- [x] `5m` → 5 minutes
+- [x] `2h` → 2 hours
+- [x] `1d` → 1 day
+- [x] `1w` → 1 week
+- [x] `1h30m` → 1 hour 30 minutes
+- [x] `2d12h` → 2 days 12 hours
 
 ### 13.2 Error Handling
-- [ ] Error on invalid format
+- [x] Error on invalid format
 - [ ] Error on negative values
-- [ ] Error on zero duration
+- [x] Error on zero duration
 
 ---
 
@@ -396,8 +396,8 @@ Complete verification checklist for all commands and options. Each item should b
 - [ ] Queues jobs when limit reached
 
 ### 16.4 Logging
-- [ ] Each job has separate log file: `~/.jm2/logs/{task-name}.log`
-- [ ] Daemon log at `~/.jm2/daemon.log`
+- [x] Each job has separate log file: `~/.jm2/logs/{task-name}.log`
+- [x] Daemon log at `~/.jm2/daemon.log`
 
 ---
 
@@ -412,9 +412,9 @@ Complete verification checklist for all commands and options. Each item should b
 - [ ] `timezone` - Timezone for scheduling
 
 ### 17.2 Data Files
-- [ ] Jobs stored at `~/.jm2/jobs.json`
-- [ ] PID file at `~/.jm2/daemon.pid`
-- [ ] Logs directory at `~/.jm2/logs/`
+- [x] Jobs stored at `~/.jm2/jobs.json`
+- [x] PID file at `~/.jm2/daemon.pid`
+- [x] Logs directory at `~/.jm2/logs/`
 
 ---
 
