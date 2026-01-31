@@ -204,11 +204,11 @@ export class Scheduler {
       if (updatedJob) {
         updatedJob.runCount = (updatedJob.runCount || 0) + 1;
         updatedJob.lastRun = new Date().toISOString();
-        updatedJob.lastResult = result.success ? 'success' : 'failed';
+        updatedJob.lastResult = result.status === 'success' ? 'success' : 'failed';
         this.persistJobs();
       }
 
-      this.logger.info(`Job ${job.id} completed: ${result.success ? 'success' : 'failed'}`);
+      this.logger.info(`Job ${job.id} completed: ${result.status === 'success' ? 'success' : 'failed'}`);
     } catch (error) {
       this.logger.error(`Job ${job.id} failed: ${error.message}`);
       
