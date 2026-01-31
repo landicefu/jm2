@@ -415,15 +415,35 @@ jm2 list --type cron
 jm2 list --status active
 ```
 
-#### Step 6.2: Show, Remove, Pause, Resume Commands
+#### Step 6.2: Show, Remove, Pause, Resume Commands ✅ COMPLETE
 **Goal:** Implement job inspection and state management.
 
 **Tasks:**
-- [ ] Create `src/cli/commands/show.js`
-- [ ] Create `src/cli/commands/remove.js`
-- [ ] Create `src/cli/commands/pause.js`
-- [ ] Create `src/cli/commands/resume.js`
-- [ ] Create `src/cli/utils/prompts.js` - Confirmation prompts
+- [x] Create `src/cli/commands/show.js` - Shows detailed job information
+- [x] Create `src/cli/commands/remove.js` - Removes jobs with confirmation (--force to skip)
+- [x] Create `src/cli/commands/pause.js` - Pauses jobs (prevents execution)
+- [x] Create `src/cli/commands/resume.js` - Resumes paused jobs
+- [x] Create `src/cli/utils/prompts.js` - Confirmation prompts utility
+- [x] Update `src/cli/index.js` - Registered all new commands
+
+**Completed:**
+- Created `show.js` with comprehensive job detail display including:
+  - Basic info (ID, Name, Status, Type)
+  - Schedule info (cron/runAt, next run, last run)
+  - Command details with working directory and environment variables
+  - Tags, timeout, retry settings
+  - Creation/update timestamps and execution history
+- Created `remove.js` supporting:
+  - Single or multiple job removal
+  - Job lookup by ID or name
+  - Confirmation prompt (skip with --force)
+  - Summary of successes/failures
+- Created `pause.js` and `resume.js` with:
+  - Support for multiple jobs at once
+  - Job lookup by ID or name
+  - Success/failure reporting
+- Created `prompts.js` with `confirm()` and `confirmDestructive()` helpers
+- All 384 tests passing
 
 **Test:**
 ```bash

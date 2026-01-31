@@ -14,6 +14,10 @@ import { restartCommand } from './commands/restart.js';
 import { statusCommand } from './commands/status.js';
 import { addCommand } from './commands/add.js';
 import { listCommand } from './commands/list.js';
+import { showCommand } from './commands/show.js';
+import { removeCommand } from './commands/remove.js';
+import { pauseCommand } from './commands/pause.js';
+import { resumeCommand } from './commands/resume.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
@@ -114,6 +118,39 @@ export async function runCli() {
     .option('-v, --verbose', 'Show detailed information', false)
     .action(async (options) => {
       const exitCode = await listCommand(options);
+      process.exit(exitCode);
+    });
+
+  program
+    .command('show <job>')
+    .description('Show detailed information about a job')
+    .action(async (job) => {
+      const exitCode = await showCommand(job);
+      process.exit(exitCode);
+    });
+
+  program
+    .command('remove <jobs...>')
+    .description('Remove one or more jobs')
+    .option('-f, --force', 'Force removal without confirmation', false)
+    .action(async (jobs, options) => {
+      const exitCode = await removeCommand(jobs, options);
+      process.exit(exitCode);
+    });
+
+  program
+    .command('pause <jobs...>')
+    .description('Pause one or more jobs')
+    .action(async (jobs) => {
+      const exitCode = await pauseCommand(jobs);
+      process.exit(exitCode);
+    });
+
+  program
+    .command('resume <jobs...>')
+    .description('Resume one or more paused jobs')
+    .action(async (jobs) => {
+      const exitCode = await resumeCommand(jobs);
       process.exit(exitCode);
     });
 
