@@ -3,7 +3,7 @@
  * View job execution logs with tail, follow, and time filtering
  */
 
-import { createReadStream, existsSync, statSync } from 'node:fs';
+import { createReadStream, existsSync, statSync, readFileSync } from 'node:fs';
 import { readFile } from 'node:fs/promises';
 import { createInterface } from 'node:readline';
 import { watch } from 'node:fs';
@@ -276,16 +276,15 @@ async function followLogFile(logFile, options) {
   let lastSize = statSync(logFile).size;
 
   return new Promise((resolve, reject) => {
-    const watcher = watch(logFile, (eventType) => {
+    const watcher = watch(logFile, async (eventType) => {
       if (eventType === 'change') {
         try {
           const stats = statSync(logFile);
           if (stats.size > lastSize) {
-            // Read new content
-            const newContent = readFileSync(logFile, 'utf8', { start: lastSize });
-            const lines = newContent.split('\n').filter(line => line.trim() !== '');
+            // Read only new content using createReadStream with start option
+            const newLines = await readNewContent(logFile, lastSize, stats.size);
             
-            for (const line of lines) {
+            for (const line of newLines) {
               // Check until filter
               if (until) {
                 const timestamp = extractTimestamp(line);
@@ -316,7 +315,36 @@ async function followLogFile(logFile, options) {
   });
 }
 
-// Import readFileSync for follow mode
-import { readFileSync } from 'node:fs';
+/**
+ * Read new content from a file starting at a specific position
+ * @param {string} filePath - Path to file
+ * @param {number} start - Starting byte position
+ * @param {number} end - Ending byte position (file size)
+ * @returns {Promise<string[]>} Array of new lines
+ */
+async function readNewContent(filePath, start, end) {
+  return new Promise((resolve, reject) => {
+    const lines = [];
+    const stream = createReadStream(filePath, { start, end: end - 1 });
+    const rl = createInterface({
+      input: stream,
+      crlfDelay: Infinity,
+    });
+
+    rl.on('line', (line) => {
+      if (line.trim() !== '') {
+        lines.push(line);
+      }
+    });
+
+    rl.on('close', () => {
+      resolve(lines);
+    });
+
+    rl.on('error', (error) => {
+      reject(error);
+    });
+  });
+}
 
 export default { logsCommand };
