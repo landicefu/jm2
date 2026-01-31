@@ -651,12 +651,27 @@ jm2 flush
 jm2 list  # Completed one-time job should be gone
 ```
 
-#### Step 8.2: Export and Import Commands
+#### Step 8.2: Export and Import Commands ✅ COMPLETE
 **Goal:** Implement job configuration export/import.
 
 **Tasks:**
-- [ ] Create `src/cli/commands/export.js`
-- [ ] Create `src/cli/commands/import.js`
+- [x] Create `src/cli/commands/export.js`
+- [x] Create `src/cli/commands/import.js`
+
+**Completed:**
+- Created `src/cli/commands/export.js` with job export functionality:
+  - Exports all jobs to a JSON file with metadata (version, exportedAt)
+  - `--output, -o` option to specify output file (default: jm2-export.json)
+  - Exports job configuration without runtime state (runCount, lastRun, etc. reset on import)
+- Created `src/cli/commands/import.js` with job import functionality:
+  - Imports jobs from a JSON export file
+  - `--skip, -s` option to skip jobs with conflicting names
+  - `--force, -f` option to skip confirmation prompt
+  - Auto-generates unique names for conflicting jobs (e.g., job-1 → job-1-2)
+  - Validates imported jobs and reports invalid/skipped jobs
+  - Resets runtime state (runCount=0, lastRun=null, etc.)
+- Registered both commands in `src/cli/index.js`
+- All 400 tests passing
 
 **Test:**
 ```bash

@@ -24,6 +24,8 @@ import { configCommand } from './commands/config.js';
 import { logsCommand } from './commands/logs.js';
 import { historyCommand } from './commands/history.js';
 import { flushCommand } from './commands/flush.js';
+import { exportCommand } from './commands/export.js';
+import { importCommand } from './commands/import.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
@@ -240,6 +242,27 @@ export async function runCli() {
     .option('--force', 'Skip confirmation prompt', false)
     .action(async (options) => {
       const exitCode = await flushCommand(options);
+      process.exit(exitCode);
+    });
+
+  // Export command
+  program
+    .command('export')
+    .description('Export job configurations to a JSON file')
+    .option('-o, --output <file>', 'Output file path (default: jm2-export.json)', 'jm2-export.json')
+    .action(async (options) => {
+      const exitCode = await exportCommand(options);
+      process.exit(exitCode);
+    });
+
+  // Import command
+  program
+    .command('import <file>')
+    .description('Import job configurations from a JSON file')
+    .option('-s, --skip', 'Skip jobs with conflicting names instead of renaming', false)
+    .option('-f, --force', 'Skip confirmation prompt', false)
+    .action(async (file, options) => {
+      const exitCode = await importCommand(file, options);
       process.exit(exitCode);
     });
 
