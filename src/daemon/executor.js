@@ -383,10 +383,26 @@ export function formatDuration(ms) {
   return `${hours}h${minutes}m`;
 }
 
+/**
+ * Create an executor instance
+ * @param {object} options - Executor options
+ * @param {object} options.logger - Logger instance
+ * @returns {object} Executor instance with executeJob and executeJobWithRetry methods
+ */
+export function createExecutor(options = {}) {
+  const { logger } = options;
+  
+  return {
+    executeJob: (job, execOptions = {}) => executeJob(job, execOptions),
+    executeJobWithRetry: (job, execOptions = {}) => executeJobWithRetry(job, execOptions),
+  };
+}
+
 export default {
   executeJob,
   executeJobWithRetry,
   killJob,
   formatDuration,
   ExecutionStatus,
+  createExecutor,
 };
