@@ -29,7 +29,8 @@ export async function exportCommand(options = {}) {
       exportedAt: new Date().toISOString(),
       jobs: jobs.map(job => ({
         // Export all job fields except runtime state
-        name: job.name,
+        // Generate a name for unnamed jobs using job ID
+        name: job.name || `job-${job.id}`,
         command: job.command,
         type: job.type,
         cron: job.cron,

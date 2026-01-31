@@ -5,10 +5,29 @@
 
 import { readFileSync, existsSync } from 'node:fs';
 import { resolve } from 'node:path';
-import { getJobs, saveJobs, jobNameExists, generateUniqueName } from '../../core/storage.js';
+import { getJobs, saveJobs, jobNameExists } from '../../core/storage.js';
 import { validateJob, createJob } from '../../core/job.js';
 import { printSuccess, printError, printInfo, printWarning } from '../utils/output.js';
 import { confirmDestructive } from '../utils/prompts.js';
+
+/**
+ * Generate a unique name by appending a number suffix
+ * @param {string} baseName - Base name to start with
+ * @param {Set<string>} existingNames - Set of existing names
+ * @returns {string} Unique name
+ */
+function makeUniqueName(baseName, existingNames) {
+  if (!existingNames.has(baseName)) {
+    return baseName;
+  }
+  let suffix = 2;
+  let newName;
+  do {
+    newName = `${baseName}-${suffix}`;
+    suffix++;
+  } while (existingNames.has(newName));
+  return newName;
+}
 
 /**
  * Execute the import command
@@ -50,10 +69,11 @@ export async function importCommand(file, options = {}) {
 
     // Get existing jobs
     const existingJobs = getJobs();
-    const existingNames = new Set(existingJobs.map(j => j.name));
+    const existingNames = new Set(existingJobs.map(j => j.name).filter(Boolean));
 
-    // Prepare jobs for import
+    // Prepare jobs for import - track original name to final name mapping
     const jobsToImport = [];
+    const nameMapping = []; // { original, final, renamed }
     const skippedJobs = [];
     const invalidJobs = [];
 
@@ -66,6 +86,7 @@ export async function importCommand(file, options = {}) {
       }
 
       // Determine the final name
+      const originalName = jobData.name || 'unnamed';
       let finalName = jobData.name;
 
       if (existingNames.has(finalName)) {
@@ -74,7 +95,7 @@ export async function importCommand(file, options = {}) {
           continue;
         }
         // Generate a unique name
-        finalName = generateUniqueName(finalName);
+        finalName = makeUniqueName(finalName, existingNames);
       }
 
       // Create the job object
@@ -92,6 +113,11 @@ export async function importCommand(file, options = {}) {
 
       jobsToImport.push(job);
       existingNames.add(finalName);
+      nameMapping.push({
+        original: originalName,
+        final: finalName,
+        renamed: originalName !== finalName
+      });
     }
 
     // Report issues
@@ -125,12 +151,11 @@ export async function importCommand(file, options = {}) {
 
     // Report results
     printSuccess(`Successfully imported ${jobsToImport.length} job(s)`);
-    for (const job of jobsToImport) {
-      const originalName = importData.jobs.find(j => j.name === job.name || generateUniqueName(j.name) === job.name)?.name;
-      if (originalName && originalName !== job.name) {
-        printInfo(`  - ${originalName} → ${job.name} (renamed)`);
+    for (const mapping of nameMapping) {
+      if (mapping.renamed) {
+        printInfo(`  - ${mapping.original} → ${mapping.final} (renamed)`);
       } else {
-        printInfo(`  - ${job.name}`);
+        printInfo(`  - ${mapping.final}`);
       }
     }
 
