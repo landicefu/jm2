@@ -98,8 +98,7 @@ jm2/
 | Phase 3: CLI Foundation | ✅ Complete | CLI entry point, daemon commands (start/stop/restart/status) |
 | Phase 4: Job Scheduling | ✅ Complete | Cron scheduler, one-time job scheduler |
 | Phase 5: Job Execution | ✅ Complete | Command executor, retry logic |
-| Phase 6: Job Management | 🔄 **NEXT** | add/list/show/remove/pause/resume/run/edit commands |
-| Phase 6: Job Management | ⏳ Pending | add/list/show/remove/pause/resume/run/edit commands |
+| Phase 6: Job Management | 🔄 **IN PROGRESS** | add/list/show/remove/pause/resume/run/edit commands |
 | Phase 7: Logs and History | ⏳ Pending | logs/history commands, log rotation |
 | Phase 8: Utility Commands | ⏳ Pending | flush, export, import commands |
 | Phase 9: Polish | ⏳ Pending | Error handling, edge cases, persistence |
@@ -369,22 +368,51 @@ jm2 history test-retry
 
 ### Phase 6: Job Management Commands
 
-#### Step 6.1: Add and List Commands
+#### Step 6.1: Add and List Commands ✅ COMPLETE
 **Goal:** Implement `jm2 add` and `jm2 list`.
 
 **Tasks:**
-- [ ] Create `src/cli/commands/add.js` - Full implementation
-- [ ] Create `src/cli/commands/list.js` - Table output
-- [ ] Implement all add options (cron, at, in, tags, etc.)
-- [ ] Implement list filters (tag, active, paused)
+- [x] Create `src/cli/commands/add.js` - Full implementation
+- [x] Create `src/cli/commands/list.js` - Table output
+- [x] Implement all add options (cron, at, delay, tags, etc.)
+- [x] Implement list filters (tag, status, type)
+
+**Completed:**
+- Created `src/cli/commands/add.js` with comprehensive job creation support:
+  - `--cron` for recurring jobs with cron expressions
+  - `--at` for one-time jobs at specific datetime (ISO 8601, "today 10:00", "tomorrow 14:30")
+  - `--delay` for one-time jobs after duration (e.g., "30m", "2h", "1d")
+  - `--name` for job naming
+  - `--tag` for tagging (can be used multiple times)
+  - `--cwd` for working directory
+  - `--env` for environment variables
+  - `--timeout` for execution timeout
+  - `--retry` for retry count
+- Created `src/cli/commands/list.js` with job listing features:
+  - Table output with ID, Name, Status, Schedule, Next Run, Last Run
+  - `--verbose` for detailed job information
+  - Filters: `--tag`, `--status`, `--type`
+- Updated IPC protocol with job management message types
+- Updated daemon to integrate scheduler and handle job IPC messages
+- All 384 tests passing
 
 **Test:**
 ```bash
+# Add cron job
 jm2 add "echo test" --cron "0 * * * *" --name hourly --tag test
-jm2 add "echo once" --at "2025-12-31 23:59" --name new-year
+
+# Add one-time job with delay
+jm2 add "echo once" --delay "5m" --name delayed-job
+
+# Add one-time job at specific time
+jm2 add "echo midnight" --at "tomorrow 00:00" --name midnight
+
+# List jobs
 jm2 list
 jm2 list --tag test
 jm2 list --verbose
+jm2 list --type cron
+jm2 list --status active
 ```
 
 #### Step 6.2: Show, Remove, Pause, Resume Commands
