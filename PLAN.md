@@ -87,7 +87,25 @@ jm2/
 
 ## Implementation Steps
 
-### Phase 1: Foundation
+> **Note for Agents:** After completing each phase, update this PLAN.md to mark completed tasks with `[x]` and commit the changes. This helps track progress for subsequent agents.
+
+### Progress Overview
+
+| Phase | Status | Description |
+|-------|--------|-------------|
+| Phase 1: Foundation | ✅ Complete | Core utilities, storage, job model, config, logger |
+| Phase 2: Daemon Core | ✅ Complete | Daemon process, PID management, IPC communication |
+| Phase 3: CLI Foundation | ✅ Complete | CLI entry point, daemon commands (start/stop/restart/status) |
+| Phase 4: Job Scheduling | 🔄 **NEXT** | Cron scheduler, one-time job scheduler |
+| Phase 5: Job Execution | ⏳ Pending | Command executor, retry logic |
+| Phase 6: Job Management | ⏳ Pending | add/list/show/remove/pause/resume/run/edit commands |
+| Phase 7: Logs and History | ⏳ Pending | logs/history commands, log rotation |
+| Phase 8: Utility Commands | ⏳ Pending | flush, export, import commands |
+| Phase 9: Polish | ⏳ Pending | Error handling, edge cases, persistence |
+
+---
+
+### Phase 1: Foundation ✅ COMPLETE
 
 #### Step 1.1: Project Setup and Core Utilities
 **Goal:** Set up the project structure and implement basic utilities.
@@ -108,13 +126,13 @@ npm test -- --grep "duration"
 node -e "const paths = require('./src/utils/paths'); console.log(paths.getDataDir())"
 ```
 
-#### Step 1.2: Storage Layer
+#### Step 1.2: Storage Layer ✅ COMPLETE
 **Goal:** Implement JSON file persistence for jobs and config.
 
 **Tasks:**
-- [ ] Create `src/core/storage.js` - Read/write JSON files
-- [ ] Create `src/core/config.js` - Configuration management
-- [ ] Create `src/core/job.js` - Job model with validation
+- [x] Create `src/core/storage.js` - Read/write JSON files
+- [x] Create `src/core/config.js` - Configuration management
+- [x] Create `src/core/job.js` - Job model with validation
 
 **Test:**
 ```bash
@@ -131,16 +149,16 @@ console.log(storage.getJobs());
 
 ---
 
-### Phase 2: Daemon Core
+### Phase 2: Daemon Core ✅ COMPLETE
 
-#### Step 2.1: Basic Daemon Process
+#### Step 2.1: Basic Daemon Process ✅ COMPLETE
 **Goal:** Create a daemon that can start, run in background, and stop.
 
 **Tasks:**
-- [ ] Create `src/daemon/index.js` - Daemon entry point
-- [ ] Implement daemonization (fork and detach)
-- [ ] Implement PID file management
-- [ ] Implement graceful shutdown
+- [x] Create `src/daemon/index.js` - Daemon entry point
+- [x] Implement daemonization (fork and detach)
+- [x] Implement PID file management
+- [x] Implement graceful shutdown
 
 **Test:**
 ```bash
@@ -154,14 +172,14 @@ cat ~/.jm2/daemon.pid
 kill $(cat ~/.jm2/daemon.pid)
 ```
 
-#### Step 2.2: IPC Communication
+#### Step 2.2: IPC Communication ✅ COMPLETE
 **Goal:** Enable CLI to communicate with daemon via Unix socket.
 
 **Tasks:**
-- [ ] Create `src/ipc/protocol.js` - Message format definitions
-- [ ] Create `src/ipc/server.js` - IPC server for daemon
-- [ ] Create `src/ipc/client.js` - IPC client for CLI
-- [ ] Integrate IPC server into daemon
+- [x] Create `src/ipc/protocol.js` - Message format definitions
+- [x] Create `src/ipc/server.js` - IPC server for daemon
+- [x] Create `src/ipc/client.js` - IPC client for CLI
+- [x] Integrate IPC server into daemon
 
 **Test:**
 ```bash
@@ -178,19 +196,21 @@ client.send({ type: 'ping' }).then(console.log);
 
 ---
 
-### Phase 3: CLI Foundation
+### Phase 3: CLI Foundation ✅ COMPLETE
 
-#### Step 3.1: CLI Setup and Daemon Commands
+#### Step 3.1: CLI Setup and Daemon Commands ✅ COMPLETE
 **Goal:** Implement basic CLI structure and daemon management commands.
 
 **Tasks:**
-- [ ] Create `bin/jm2.js` - CLI entry point
-- [ ] Create `src/cli/index.js` - Commander.js setup
-- [ ] Create `src/cli/commands/start.js` - `jm2 start`
-- [ ] Create `src/cli/commands/stop.js` - `jm2 stop`
-- [ ] Create `src/cli/commands/restart.js` - `jm2 restart`
-- [ ] Create `src/cli/commands/status.js` - `jm2 status`
-- [ ] Create `src/cli/utils/output.js` - Output formatting
+- [x] Create `bin/jm2.js` - CLI entry point
+- [x] Create `src/cli/index.js` - Commander.js setup
+- [x] Create `src/cli/commands/start.js` - `jm2 start`
+- [x] Create `src/cli/commands/stop.js` - `jm2 stop`
+- [x] Create `src/cli/commands/restart.js` - `jm2 restart`
+- [x] Create `src/cli/commands/status.js` - `jm2 status`
+- [x] Create `src/cli/utils/output.js` - Output formatting
+
+**Completed:** All daemon management commands are working. Tests pass. Commit: `1385d7f`
 
 **Test:**
 ```bash
@@ -206,7 +226,7 @@ jm2 restart
 
 ---
 
-### Phase 4: Job Scheduling
+### Phase 4: Job Scheduling 🔄 NEXT
 
 #### Step 4.1: Cron Scheduler
 **Goal:** Implement periodic job scheduling using cron expressions.
