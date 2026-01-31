@@ -4,6 +4,7 @@
  */
 
 import { parseDuration } from '../utils/duration.js';
+import { validateCronExpression } from '../utils/cron.js';
 
 /**
  * Job status constants
@@ -141,14 +142,14 @@ export function validateJob(job) {
     }
   }
   
-  // Validate cron expression (basic validation)
+  // Validate cron expression using cron-parser
   if (job.cron) {
     if (typeof job.cron !== 'string') {
       errors.push('cron must be a string');
     } else {
-      const parts = job.cron.trim().split(/\s+/);
-      if (parts.length < 5 || parts.length > 6) {
-        errors.push('cron expression must have 5 or 6 fields');
+      const validation = validateCronExpression(job.cron);
+      if (!validation.valid) {
+        errors.push(`Invalid cron expression: ${validation.error}`);
       }
     }
   }

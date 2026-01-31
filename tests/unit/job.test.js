@@ -143,13 +143,13 @@ describe('job', () => {
     });
 
     describe('cron validation', () => {
-      it('should reject cron with too few fields', () => {
+      it('should reject invalid cron expression', () => {
         const result = validateJob({
           command: 'echo test',
-          cron: '* * *',
+          cron: 'invalid-cron',
         });
         expect(result.valid).toBe(false);
-        expect(result.errors).toContain('cron expression must have 5 or 6 fields');
+        expect(result.errors.some(e => e.includes('Invalid cron expression'))).toBe(true);
       });
 
       it('should reject cron with too many fields', () => {

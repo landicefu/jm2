@@ -696,8 +696,8 @@ jm2 list  # Jobs should be restored
 **Goal:** Handle all error cases gracefully.
 
 **Tasks:**
-- [ ] Handle daemon not running errors
-- [ ] Handle invalid cron expressions
+- [x] Handle daemon not running errors - Improved IPC client with DaemonError class and user-friendly error messages
+- [x] Handle invalid cron expressions - Updated job validation to use cron-parser for comprehensive validation
 - [ ] Handle invalid datetime formats
 - [ ] Handle job not found errors
 - [ ] Handle permission errors

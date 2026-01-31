@@ -6,6 +6,29 @@ import { createConnection } from 'node:net';
 import { getSocketPath } from '../utils/paths.js';
 
 /**
+ * Custom error class for daemon-related errors
+ */
+export class DaemonError extends Error {
+  constructor(message, code) {
+    super(message);
+    this.name = 'DaemonError';
+    this.code = code;
+  }
+}
+
+/**
+ * Check if error is a connection refused error (daemon not running)
+ * @param {Error} error - Error object
+ * @returns {boolean} True if connection refused
+ */
+function isConnectionRefusedError(error) {
+  return error.code === 'ECONNREFUSED' ||
+         error.code === 'ENOENT' ||
+         error.message?.includes('connect') ||
+         error.message?.includes('No such file or directory');
+}
+
+/**
  * Send a message to the daemon
  * @param {object} message - Message to send
  * @param {object} options - Client options
@@ -25,7 +48,7 @@ export function send(message, options = {}) {
       if (!finished) {
         finished = true;
         client.destroy();
-        reject(new Error('IPC request timed out'));
+        reject(new DaemonError('IPC request timed out', 'ETIMEOUT'));
       }
     }, timeoutMs);
 
@@ -33,7 +56,19 @@ export function send(message, options = {}) {
       if (!finished) {
         finished = true;
         clearTimeout(timeout);
-        reject(err);
+        
+        // Provide user-friendly error for daemon not running
+        if (isConnectionRefusedError(err)) {
+          reject(new DaemonError(
+            'Daemon is not running. Start it with: jm2 start',
+            'EDAEMON_NOT_RUNNING'
+          ));
+        } else {
+          reject(new DaemonError(
+            `IPC communication failed: ${err.message}`,
+            err.code || 'EIPC_ERROR'
+          ));
+        }
       }
     });
 
@@ -59,7 +94,7 @@ export function send(message, options = {}) {
             finished = true;
             clearTimeout(timeout);
             client.end();
-            reject(new Error('Invalid JSON response'));
+            reject(new DaemonError('Invalid JSON response from daemon', 'EINVALID_JSON'));
           }
         }
       }
@@ -73,4 +108,5 @@ export function send(message, options = {}) {
 
 export default {
   send,
+  DaemonError,
 };
