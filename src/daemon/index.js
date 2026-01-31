@@ -7,7 +7,7 @@ import { writeFileSync, unlinkSync, existsSync, readFileSync, readdirSync, statS
 import { spawn } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
 import { dirname, join } from 'node:path';
-import { getPidFile, ensureDataDir, getSocketPath, getLogsDir } from '../utils/paths.js';
+import { getPidFile, ensureDataDir, getSocketPath, getLogsDir, getJobLogFile } from '../utils/paths.js';
 import { getJobs, saveJobs, getHistory, saveHistory } from '../core/storage.js';
 import { getConfig } from '../core/config.js';
 import { createDaemonLogger } from '../core/logger.js';
@@ -449,6 +449,7 @@ function handleJobGet(message) {
 function handleJobRemove(message) {
   try {
     let jobId = message.jobId;
+    let jobName = null;
     
     // If name is provided instead of ID, look it up
     if (!jobId && message.jobName) {
@@ -456,6 +457,13 @@ function handleJobRemove(message) {
       const job = jobs.find(j => j.name === message.jobName);
       if (job) {
         jobId = job.id;
+        jobName = job.name;
+      }
+    } else if (jobId) {
+      // Get job name for log file deletion
+      const job = scheduler.getJob(jobId);
+      if (job) {
+        jobName = job.name;
       }
     }
     
@@ -470,6 +478,17 @@ function handleJobRemove(message) {
     
     if (success) {
       logger?.info(`Job removed via IPC: ${jobId}`);
+      
+      // Delete the job's log file
+      const logFile = getJobLogFile(jobName || `job-${jobId}`);
+      if (existsSync(logFile)) {
+        try {
+          unlinkSync(logFile);
+          logger?.info(`Deleted log file: ${logFile}`);
+        } catch (err) {
+          logger?.warn(`Failed to delete log file: ${logFile} - ${err.message}`);
+        }
+      }
     }
     
     return createJobRemovedResponse(success);
