@@ -9,6 +9,8 @@ import { getJobs, saveJobs, jobNameExists } from '../../core/storage.js';
 import { validateJob, createJob } from '../../core/job.js';
 import { printSuccess, printError, printInfo, printWarning } from '../utils/output.js';
 import { confirmDestructive } from '../utils/prompts.js';
+import { send } from '../../ipc/client.js';
+import { MessageType } from '../../ipc/protocol.js';
 
 /**
  * Generate a unique name by appending a number suffix
@@ -148,6 +150,13 @@ export async function importCommand(file, options = {}) {
     // Import the jobs
     const allJobs = [...existingJobs, ...jobsToImport];
     saveJobs(allJobs);
+
+    // Notify daemon to reload jobs
+    try {
+      await send({ type: MessageType.RELOAD_JOBS });
+    } catch (error) {
+      printWarning(`Failed to notify daemon to reload jobs: ${error.message}`);
+    }
 
     // Report results
     printSuccess(`Successfully imported ${jobsToImport.length} job(s)`);

@@ -29,6 +29,10 @@ export const MessageType = {
   // Flush/cleanup
   FLUSH: 'flush',
   FLUSH_RESULT: 'flush:result',
+
+  // Import/reload
+  RELOAD_JOBS: 'jobs:reload',
+  RELOAD_JOBS_RESULT: 'jobs:reload:result',
 };
 
 /**

@@ -323,6 +323,9 @@ async function handleIpcMessage(message) {
     case MessageType.FLUSH:
       return handleFlush(message);
 
+    case MessageType.RELOAD_JOBS:
+      return handleReloadJobs(message);
+
     default:
       return {
         type: 'error',
@@ -796,6 +799,29 @@ function handleFlush(message) {
     return {
       type: MessageType.ERROR,
       message: `Failed to flush: ${error.message}`,
+    };
+  }
+}
+
+/**
+ * Handle reload jobs message
+ * Reloads jobs from storage into scheduler
+ * @returns {object} Response
+ */
+function handleReloadJobs() {
+  try {
+    scheduler.loadJobs();
+    const jobCount = scheduler.getAllJobs().length;
+    logger?.info(`Reloaded ${jobCount} jobs from storage`);
+    return {
+      type: MessageType.RELOAD_JOBS_RESULT,
+      count: jobCount,
+    };
+  } catch (error) {
+    logger?.error(`Failed to reload jobs: ${error.message}`);
+    return {
+      type: MessageType.ERROR,
+      message: `Failed to reload jobs: ${error.message}`,
     };
   }
 }
