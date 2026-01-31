@@ -98,8 +98,8 @@ jm2/
 | Phase 3: CLI Foundation | ✅ Complete | CLI entry point, daemon commands (start/stop/restart/status) |
 | Phase 4: Job Scheduling | ✅ Complete | Cron scheduler, one-time job scheduler |
 | Phase 5: Job Execution | ✅ Complete | Command executor, retry logic |
-| Phase 6: Job Management | 🔄 **IN PROGRESS** | add/list/show/remove/pause/resume/run/edit commands |
-| Phase 7: Logs and History | ⏳ Pending | logs/history commands, log rotation |
+| Phase 6: Job Management | ✅ Complete | add/list/show/remove/pause/resume/run/edit commands |
+| Phase 7: Logs and History | ✅ Complete | logs/history commands, log rotation |
 | Phase 8: Utility Commands | ⏳ Pending | flush, export, import commands |
 | Phase 9: Polish | ⏳ Pending | Error handling, edge cases, persistence |
 
@@ -554,19 +554,37 @@ ls ~/.jm2/logs/
 cat ~/.jm2/logs/log-test.log
 ```
 
-#### Step 7.2: Logs and History Commands
+#### Step 7.2: Logs and History Commands ✅ COMPLETE
 **Goal:** Implement log viewing and history commands.
 
 **Tasks:**
-- [ ] Create `src/cli/commands/logs.js` with options:
+- [x] Create `src/cli/commands/logs.js` with options:
   - `--lines, -n`: Number of lines to show from tail (default: 50)
   - `--follow, -f`: Watch/follow log output in real-time
   - `--since`: Show logs since a specific time (e.g., "1h ago", "2026-01-31")
   - `--until`: Show logs until a specific time
   - `--timestamps`: Show timestamps (default: true, use --no-timestamps to hide)
-- [ ] Create `src/cli/commands/history.js` to show execution history
-- [ ] Implement efficient tail functionality for large log files
-- [ ] Implement log following with file watching
+- [x] Create `src/cli/commands/history.js` to show execution history
+- [x] Implement efficient tail functionality for large log files
+- [x] Implement log following with file watching
+- [x] Register commands in `src/cli/index.js`
+
+**Completed:**
+- Created `logs.js` with comprehensive log viewing features:
+  - `--lines, -n`: Show last N lines (default: 50) with efficient tail implementation
+  - `--follow, -f`: Real-time log following with file watching (like `tail -f`)
+  - `--since`: Filter logs since a relative time ("1h", "30m") or absolute date
+  - `--until`: Filter logs until a specific time
+  - `--timestamps/--no-timestamps`: Control timestamp display with gray formatting
+  - Direct file reading for log access (no IPC needed)
+- Created `history.js` with execution history display:
+  - Shows job execution history in a formatted table
+  - `--failed`: Filter to show only failed executions
+  - `--success`: Filter to show only successful executions
+  - `--limit`: Control number of entries shown (default: 20)
+  - Supports viewing history for a specific job or all jobs
+  - Colorized status (green=success, red=failed, yellow=timeout)
+- All 397 tests passing
 
 **Test:**
 ```bash

@@ -21,6 +21,8 @@ import { resumeCommand } from './commands/resume.js';
 import { runCommand } from './commands/run.js';
 import { editCommand } from './commands/edit.js';
 import { configCommand } from './commands/config.js';
+import { logsCommand } from './commands/logs.js';
+import { historyCommand } from './commands/history.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
@@ -196,6 +198,33 @@ export async function runCli() {
     .option('--reset', 'Reset configuration to defaults')
     .action(async (options) => {
       const exitCode = await configCommand(options);
+      process.exit(exitCode);
+    });
+
+  // Logs command
+  program
+    .command('logs <job>')
+    .description('View job execution logs')
+    .option('-n, --lines <count>', 'Number of lines to show (default: 50)', '50')
+    .option('-f, --follow', 'Follow log output in real-time', false)
+    .option('--since <time>', 'Show logs since time (e.g., "1h", "30m", "2026-01-31")')
+    .option('--until <time>', 'Show logs until time')
+    .option('--timestamps', 'Show timestamps', true)
+    .option('--no-timestamps', 'Hide timestamps')
+    .action(async (job, options) => {
+      const exitCode = await logsCommand(job, options);
+      process.exit(exitCode);
+    });
+
+  // History command
+  program
+    .command('history [job]')
+    .description('Show execution history for a job or all jobs')
+    .option('-f, --failed', 'Show only failed executions', false)
+    .option('-s, --success', 'Show only successful executions', false)
+    .option('-l, --limit <count>', 'Maximum number of entries to show (default: 20)', '20')
+    .action(async (job, options) => {
+      const exitCode = await historyCommand(job, options);
       process.exit(exitCode);
     });
 
