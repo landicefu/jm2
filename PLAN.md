@@ -638,7 +638,7 @@ jm2 history --failed
 - Registered flush command in CLI index.js
 - Added unit tests for flush protocol functions (400 tests passing)
 
-**Commit:** TBD
+**Commit:** ffd1de7
 
 **Test:**
 ```bash
