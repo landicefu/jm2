@@ -614,14 +614,31 @@ jm2 history --failed
 
 ### Phase 8: Utility Commands
 
-#### Step 8.1: Flush Command
+#### Step 8.1: Flush Command ✅ COMPLETE
 **Goal:** Implement cleanup functionality.
 
 **Tasks:**
-- [ ] Create `src/cli/commands/flush.js`
-- [ ] Implement completed one-time job cleanup
-- [ ] Implement log cleanup
-- [ ] Implement history cleanup
+- [x] Create `src/cli/commands/flush.js`
+- [x] Implement completed one-time job cleanup
+- [x] Implement log cleanup
+- [x] Implement history cleanup
+
+**Completed:**
+- Created `src/cli/commands/flush.js` with comprehensive cleanup functionality:
+  - `--no-jobs` - Skip removing completed one-time jobs
+  - `--logs <duration>` - Remove logs older than specified duration (e.g., "7d", "24h")
+  - `--history <duration>` - Remove history entries older than specified duration
+  - `--all` - Remove all logs and history
+  - `--force` - Skip confirmation prompt
+- Added FLUSH and FLUSH_RESULT message types to IPC protocol
+- Implemented `handleFlush()` in daemon to process flush requests:
+  - Removes completed one-time jobs (preserves cron jobs and non-completed jobs)
+  - Removes log files older than specified age (or all if no age limit)
+  - Removes history entries older than specified age (or all if no age limit)
+- Registered flush command in CLI index.js
+- Added unit tests for flush protocol functions (400 tests passing)
+
+**Commit:** TBD
 
 **Test:**
 ```bash

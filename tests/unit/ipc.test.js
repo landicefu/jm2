@@ -52,6 +52,31 @@ describe('ipc', () => {
       expect(response.type).toBe(protocol.MessageType.ERROR);
       expect(response.message).toBe('boom');
     });
+
+    it('should create flush result response', () => {
+      const response = protocol.createFlushResultResponse({
+        jobsRemoved: 5,
+        logsRemoved: 3,
+        historyRemoved: 10,
+      });
+      expect(response.type).toBe(protocol.MessageType.FLUSH_RESULT);
+      expect(response.jobsRemoved).toBe(5);
+      expect(response.logsRemoved).toBe(3);
+      expect(response.historyRemoved).toBe(10);
+    });
+
+    it('should create flush result response with defaults', () => {
+      const response = protocol.createFlushResultResponse({});
+      expect(response.type).toBe(protocol.MessageType.FLUSH_RESULT);
+      expect(response.jobsRemoved).toBe(0);
+      expect(response.logsRemoved).toBe(0);
+      expect(response.historyRemoved).toBe(0);
+    });
+
+    it('should have FLUSH message type', () => {
+      expect(protocol.MessageType.FLUSH).toBe('flush');
+      expect(protocol.MessageType.FLUSH_RESULT).toBe('flush:result');
+    });
   });
 
   describe('server/client', () => {

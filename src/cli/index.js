@@ -23,6 +23,7 @@ import { editCommand } from './commands/edit.js';
 import { configCommand } from './commands/config.js';
 import { logsCommand } from './commands/logs.js';
 import { historyCommand } from './commands/history.js';
+import { flushCommand } from './commands/flush.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
@@ -225,6 +226,20 @@ export async function runCli() {
     .option('-l, --limit <count>', 'Maximum number of entries to show (default: 20)', '20')
     .action(async (job, options) => {
       const exitCode = await historyCommand(job, options);
+      process.exit(exitCode);
+    });
+
+  // Flush command
+  program
+    .command('flush')
+    .description('Clean up completed one-time jobs, old logs, and history')
+    .option('--no-jobs', 'Skip removing completed one-time jobs')
+    .option('--logs <duration>', 'Remove logs older than duration (e.g., "7d", "24h")')
+    .option('--history <duration>', 'Remove history older than duration (e.g., "30d")')
+    .option('-a, --all', 'Remove all logs and history (equivalent to --logs --history with no age limit)')
+    .option('--force', 'Skip confirmation prompt', false)
+    .action(async (options) => {
+      const exitCode = await flushCommand(options);
       process.exit(exitCode);
     });
 

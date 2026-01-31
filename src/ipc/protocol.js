@@ -25,6 +25,10 @@ export const MessageType = {
   JOB_RESUMED: 'job:resumed',
   JOB_RUN: 'job:run',
   JOB_RUN_RESULT: 'job:run:result',
+
+  // Flush/cleanup
+  FLUSH: 'flush',
+  FLUSH_RESULT: 'flush:result',
 };
 
 /**
@@ -124,6 +128,20 @@ export function createJobRunResponse(result) {
 }
 
 /**
+ * Create a flush result response
+ * @param {object} result - Flush result with jobsRemoved, logsRemoved, historyRemoved
+ * @returns {{ type: string, jobsRemoved: number, logsRemoved: number, historyRemoved: number }}
+ */
+export function createFlushResultResponse(result) {
+  return {
+    type: MessageType.FLUSH_RESULT,
+    jobsRemoved: result.jobsRemoved || 0,
+    logsRemoved: result.logsRemoved || 0,
+    historyRemoved: result.historyRemoved || 0,
+  };
+}
+
+/**
  * Create a standard error response
  * @param {string} message - Error message
  * @returns {{ type: string, message: string }}
@@ -157,4 +175,5 @@ export default {
   createJobPausedResponse,
   createJobResumedResponse,
   createJobRunResponse,
+  createFlushResultResponse,
 };

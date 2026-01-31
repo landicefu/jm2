@@ -3,11 +3,12 @@
  * Handles daemonization, PID management, and graceful shutdown
  */
 
-import { writeFileSync, unlinkSync, existsSync, readFileSync } from 'node:fs';
+import { writeFileSync, unlinkSync, existsSync, readFileSync, readdirSync, statSync } from 'node:fs';
 import { spawn } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
 import { dirname, join } from 'node:path';
-import { getPidFile, ensureDataDir, getSocketPath } from '../utils/paths.js';
+import { getPidFile, ensureDataDir, getSocketPath, getLogsDir } from '../utils/paths.js';
+import { getJobs, saveJobs, getHistory, saveHistory } from '../core/storage.js';
 import { createDaemonLogger } from '../core/logger.js';
 import { startIpcServer, stopIpcServer } from '../ipc/server.js';
 import { createScheduler } from './scheduler.js';
@@ -23,6 +24,7 @@ import {
   createJobPausedResponse,
   createJobResumedResponse,
   createJobRunResponse,
+  createFlushResultResponse,
 } from '../ipc/protocol.js';
 
 const __filename = fileURLToPath(import.meta.url);
@@ -317,6 +319,9 @@ async function handleIpcMessage(message) {
 
     case MessageType.JOB_RUN:
       return handleJobRun(message);
+
+    case MessageType.FLUSH:
+      return handleFlush(message);
 
     default:
       return {
@@ -699,6 +704,98 @@ async function executeJobAndReturnResult(job) {
     return {
       status: 'failed',
       error: error.message,
+    };
+  }
+}
+
+/**
+ * Handle flush message
+ * @param {object} message - Flush request with options
+ * @returns {object} Response with flush results
+ */
+function handleFlush(message) {
+  try {
+    const result = {
+      jobsRemoved: 0,
+      logsRemoved: 0,
+      historyRemoved: 0,
+    };
+
+    // Flush completed one-time jobs
+    if (message.jobs !== false) {
+      const jobs = getJobs();
+      const initialCount = jobs.length;
+      const filteredJobs = jobs.filter(job => {
+        // Keep non-completed jobs, keep cron jobs even if completed
+        if (job.type !== 'once') {
+          return true;
+        }
+        return job.status !== 'completed';
+      });
+      result.jobsRemoved = initialCount - filteredJobs.length;
+      if (result.jobsRemoved > 0) {
+        saveJobs(filteredJobs);
+        logger?.info(`Flushed ${result.jobsRemoved} completed one-time jobs`);
+      }
+    }
+
+    // Flush old logs
+    if (message.logs) {
+      const logsDir = getLogsDir();
+      if (existsSync(logsDir)) {
+        const files = readdirSync(logsDir);
+        const now = Date.now();
+        const ageMs = message.logsAgeMs || 0; // 0 means all logs
+
+        for (const file of files) {
+          if (file.endsWith('.log')) {
+            const filePath = `${logsDir}/${file}`;
+            const stats = statSync(filePath);
+            const fileAge = now - stats.mtime.getTime();
+
+            if (ageMs === 0 || fileAge > ageMs) {
+              unlinkSync(filePath);
+              result.logsRemoved++;
+            }
+          }
+        }
+        if (result.logsRemoved > 0) {
+          logger?.info(`Flushed ${result.logsRemoved} log files`);
+        }
+      }
+    }
+
+    // Flush old history
+    if (message.history) {
+      const history = getHistory();
+      const initialCount = history.length;
+
+      if (message.historyAgeMs && message.historyAgeMs > 0) {
+        // Remove entries older than specified age
+        const cutoff = new Date(Date.now() - message.historyAgeMs).toISOString();
+        const filtered = history.filter(entry => entry.timestamp >= cutoff);
+        result.historyRemoved = initialCount - filtered.length;
+        if (result.historyRemoved > 0) {
+          saveHistory(filtered);
+        }
+      } else {
+        // Remove all history
+        result.historyRemoved = initialCount;
+        if (result.historyRemoved > 0) {
+          saveHistory([]);
+        }
+      }
+      if (result.historyRemoved > 0) {
+        logger?.info(`Flushed ${result.historyRemoved} history entries`);
+      }
+    }
+
+    return createFlushResultResponse(result);
+  } catch (error) {
+    logger?.error(`Failed to flush: ${error.message}`);
+    return {
+      type: MessageType.ERROR,
+      message: `Failed to flush: ${error.message}`,
     };
   }
 }
