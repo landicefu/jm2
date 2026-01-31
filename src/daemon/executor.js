@@ -51,10 +51,11 @@ export function executeJob(job, options = {}) {
     const jobId = job.id;
     const jobName = job.name || `job-${jobId}`;
 
-    // Setup logging
+    // Setup logging - use custom name or just job ID for logger name
     const logFile = getJobLogFile(jobName);
     ensureLogsDir();
-    const jobLogger = createLogger({ name: `job-${jobName}`, file: logFile });
+    const loggerName = job.name || String(jobId);
+    const jobLogger = createLogger({ name: loggerName, file: logFile });
 
     // Log execution start
     jobLogger.info(`Starting execution: ${job.command}`);
