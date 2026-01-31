@@ -69,6 +69,10 @@ export class Scheduler {
     this.jobs.clear();
 
     for (const job of storedJobs) {
+      // Assign ID if missing (for backward compatibility with old imports)
+      if (!job.id) {
+        job.id = this.generateJobId();
+      }
       this.addJobToMemory(job);
     }
 
@@ -119,6 +123,11 @@ export class Scheduler {
    * @param {object} job - Job object
    */
   addJobToMemory(job) {
+    // Ensure job has an ID
+    if (!job.id) {
+      job.id = this.generateJobId();
+    }
+
     // Calculate next run time for active jobs
     let nextRun = null;
     if (job.status === JobStatus.ACTIVE) {

@@ -5,7 +5,7 @@
 
 import { readFileSync, existsSync } from 'node:fs';
 import { resolve } from 'node:path';
-import { getJobs, saveJobs, jobNameExists } from '../../core/storage.js';
+import { getJobs, saveJobs, jobNameExists, getNextJobId } from '../../core/storage.js';
 import { validateJob, createJob } from '../../core/job.js';
 import { printSuccess, printError, printInfo, printWarning } from '../utils/output.js';
 import { confirmDestructive } from '../utils/prompts.js';
@@ -72,6 +72,9 @@ export async function importCommand(file, options = {}) {
     // Get existing jobs
     const existingJobs = getJobs();
     const existingNames = new Set(existingJobs.map(j => j.name).filter(Boolean));
+    
+    // Get starting ID for new jobs (imported jobs get new IDs)
+    let nextId = getNextJobId();
 
     // Prepare jobs for import - track original name to final name mapping
     const jobsToImport = [];
@@ -100,9 +103,10 @@ export async function importCommand(file, options = {}) {
         finalName = makeUniqueName(finalName, existingNames);
       }
 
-      // Create the job object
+      // Create the job object with a new ID
       const job = createJob({
         ...jobData,
+        id: nextId++, // Assign a new ID
         name: finalName,
         // Reset runtime state
         status: jobData.status === 'paused' ? 'paused' : 'active',
