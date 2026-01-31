@@ -226,18 +226,27 @@ jm2 restart
 
 ---
 
-### Phase 4: Job Scheduling 🔄 NEXT
+### Phase 4: Job Scheduling 🔄 IN PROGRESS
 
 #### Step 4.1: Cron Scheduler ✅ COMPLETE
 **Goal:** Implement periodic job scheduling using cron expressions.
 
 **Tasks:**
 - [x] Create `src/utils/cron.js` - Cron expression utilities
-- [ ] Create `src/daemon/scheduler.js` - Job scheduler
-- [ ] Implement cron job scheduling
-- [ ] Implement next run time calculation
+- [x] Create `src/daemon/scheduler.js` - Job scheduler
+- [x] Implement cron job scheduling
+- [x] Implement next run time calculation
 
-**Completed:** Created cron expression utilities with validation, next run time calculation, and presets. Commit: `97815be`
+**Completed:**
+- Created cron expression utilities with validation, next run time calculation, and presets. Commit: `97815be`
+- Created `src/daemon/scheduler.js` with full job scheduling support including:
+  - Cron job scheduling with next run calculation
+  - One-time job scheduling (`--at` support)
+  - Job status management (active, paused, completed)
+  - Due job detection via tick/check mechanism
+  - Job CRUD operations (add, remove, update)
+  - Scheduler statistics
+- Created comprehensive unit tests (36 tests, all passing)
 
 **Test:**
 ```bash
