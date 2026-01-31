@@ -19,6 +19,7 @@ export class Scheduler {
     this.checkInterval = null;
     this.checkIntervalMs = options.checkIntervalMs || 1000; // Check every second
     this.runningJobs = new Set(); // Track currently running job IDs
+    this.maxConcurrent = options.maxConcurrent || 10; // Max concurrent job executions
   }
 
   /**
@@ -199,6 +200,12 @@ export class Scheduler {
 
     if (this.runningJobs.has(job.id)) {
       this.logger.warn(`Job ${job.id} is already running`);
+      return;
+    }
+
+    // Check concurrent execution limit
+    if (this.runningJobs.size >= this.maxConcurrent) {
+      this.logger.warn(`Cannot execute job ${job.id}: max concurrent jobs (${this.maxConcurrent}) reached`);
       return;
     }
 

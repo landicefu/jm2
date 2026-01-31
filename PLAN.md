@@ -698,10 +698,36 @@ jm2 list  # Jobs should be restored
 **Tasks:**
 - [x] Handle daemon not running errors - Improved IPC client with DaemonError class and user-friendly error messages
 - [x] Handle invalid cron expressions - Updated job validation to use cron-parser for comprehensive validation
-- [ ] Handle invalid datetime formats
-- [ ] Handle job not found errors
-- [ ] Handle permission errors
-- [ ] Handle concurrent job execution limits
+- [x] Handle invalid datetime formats - Already handled with good error messages in datetime.js
+- [x] Handle job not found errors - Already handled in CLI commands and daemon
+- [x] Handle permission errors - Handled by storage layer with descriptive error messages
+- [x] Handle concurrent job execution limits - Added maxConcurrent enforcement to scheduler
+
+**Completed:**
+- Added DaemonError class to IPC client for better error handling
+- Updated job validation to use cron-parser library for comprehensive cron validation
+- Verified datetime validation has good error handling
+- Verified job not found errors are handled properly in all CLI commands
+- Verified permission errors are caught by storage layer
+- Added maxConcurrent option to scheduler and enforcement in executeJob()
+- Scheduler now reads maxConcurrent from config and respects the limit
+
+**Test:**
+```bash
+# Test invalid cron
+jm2 add "echo test" --cron "invalid" --name bad-cron
+# Should show: Invalid cron expression error
+
+# Test daemon not running
+jm2 stop
+jm2 list
+# Should show: Daemon is not running. Start it with: jm2 start
+
+# Test job not found
+jm2 start
+jm2 show nonexistent
+# Should show: Job not found: nonexistent
+```
 
 **Test:**
 ```bash

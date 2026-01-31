@@ -9,6 +9,7 @@ import { fileURLToPath } from 'node:url';
 import { dirname, join } from 'node:path';
 import { getPidFile, ensureDataDir, getSocketPath, getLogsDir } from '../utils/paths.js';
 import { getJobs, saveJobs, getHistory, saveHistory } from '../core/storage.js';
+import { getConfig } from '../core/config.js';
 import { createDaemonLogger } from '../core/logger.js';
 import { startIpcServer, stopIpcServer } from '../ipc/server.js';
 import { createScheduler } from './scheduler.js';
@@ -241,7 +242,12 @@ async function runDaemon(options = {}) {
 
   // Start scheduler
   try {
-    scheduler = createScheduler({ logger, executor });
+    const config = getConfig();
+    scheduler = createScheduler({
+      logger,
+      executor,
+      maxConcurrent: config.daemon?.maxConcurrent || 10,
+    });
     scheduler.start();
     logger.info('Scheduler started');
   } catch (error) {
