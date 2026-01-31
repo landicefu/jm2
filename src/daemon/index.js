@@ -11,6 +11,7 @@ import { getPidFile, ensureDataDir, getSocketPath } from '../utils/paths.js';
 import { createDaemonLogger } from '../core/logger.js';
 import { startIpcServer, stopIpcServer } from '../ipc/server.js';
 import { createScheduler } from './scheduler.js';
+import { createExecutor } from './executor.js';
 import { createJob, validateJob, normalizeJob, JobStatus } from '../core/job.js';
 import {
   MessageType,
@@ -232,9 +233,13 @@ async function runDaemon(options = {}) {
     logger.error(`Unhandled rejection at: ${promise}, reason: ${reason}`);
   });
 
+  // Create executor
+  const executor = createExecutor({ logger });
+  logger.info('Executor created');
+
   // Start scheduler
   try {
-    scheduler = createScheduler({ logger });
+    scheduler = createScheduler({ logger, executor });
     scheduler.start();
     logger.info('Scheduler started');
   } catch (error) {

@@ -13,10 +13,12 @@ import { getJobs, saveJobs } from '../core/storage.js';
 export class Scheduler {
   constructor(options = {}) {
     this.logger = options.logger || console;
+    this.executor = options.executor || null;
     this.jobs = new Map(); // Map of job ID to scheduled job info
     this.running = false;
     this.checkInterval = null;
     this.checkIntervalMs = options.checkIntervalMs || 1000; // Check every second
+    this.runningJobs = new Set(); // Track currently running job IDs
   }
 
   /**
@@ -177,6 +179,52 @@ export class Scheduler {
   }
 
   /**
+   * Execute a job using the executor
+   * @param {object} job - Job to execute
+   */
+  async executeJob(job) {
+    if (!this.executor) {
+      this.logger.warn(`Cannot execute job ${job.id}: no executor configured`);
+      return;
+    }
+
+    if (this.runningJobs.has(job.id)) {
+      this.logger.warn(`Job ${job.id} is already running`);
+      return;
+    }
+
+    this.runningJobs.add(job.id);
+    this.logger.info(`Executing job ${job.id} (${job.name || 'unnamed'})`);
+
+    try {
+      const result = await this.executor.executeJobWithRetry(job);
+      
+      // Update job stats
+      const updatedJob = this.jobs.get(job.id);
+      if (updatedJob) {
+        updatedJob.runCount = (updatedJob.runCount || 0) + 1;
+        updatedJob.lastRun = new Date().toISOString();
+        updatedJob.lastResult = result.success ? 'success' : 'failed';
+        this.persistJobs();
+      }
+
+      this.logger.info(`Job ${job.id} completed: ${result.success ? 'success' : 'failed'}`);
+    } catch (error) {
+      this.logger.error(`Job ${job.id} failed: ${error.message}`);
+      
+      const updatedJob = this.jobs.get(job.id);
+      if (updatedJob) {
+        updatedJob.runCount = (updatedJob.runCount || 0) + 1;
+        updatedJob.lastRun = new Date().toISOString();
+        updatedJob.lastResult = 'failed';
+        this.persistJobs();
+      }
+    } finally {
+      this.runningJobs.delete(job.id);
+    }
+  }
+
+  /**
    * Process due jobs - called on each tick
    * @returns {Array} Jobs that were processed
    */
@@ -189,6 +237,9 @@ export class Scheduler {
 
     for (const job of dueJobs) {
       this.logger.debug(`Job ${job.id} (${job.name || 'unnamed'}) is due`);
+
+      // Execute the job
+      this.executeJob(job);
 
       // For one-time jobs, mark as completed after scheduling
       if (job.type === JobType.ONCE) {
