@@ -457,12 +457,38 @@ jm2 remove test-job
 jm2 list  # Should be gone
 ```
 
-#### Step 6.3: Run and Edit Commands
+#### Step 6.3: Run and Edit Commands ✅ COMPLETE
 **Goal:** Implement manual execution and job editing.
 
 **Tasks:**
-- [ ] Create `src/cli/commands/run.js`
-- [ ] Create `src/cli/commands/edit.js`
+- [x] Create `src/cli/commands/run.js` - Manual job execution with `--wait` support
+- [x] Create `src/cli/commands/edit.js` - Edit existing job properties
+- [x] Update `src/cli/index.js` - Register run and edit commands
+- [x] Update daemon's `handleJobRun` - Actually execute jobs (not just queue them)
+
+**Completed:**
+- Created `run.js` with comprehensive manual execution support:
+  - Run jobs by ID or name
+  - `--wait` flag to wait for completion and display output
+  - Shows stdout, stderr, exit code, and duration when waiting
+  - Async execution (fire and forget) when not using --wait
+- Created `edit.js` with full job editing capabilities:
+  - `--command` - Update the command to execute
+  - `--name` - Rename the job
+  - `--cron` - Change to cron schedule
+  - `--at` or `--delay` - Change to one-time schedule
+  - `--cwd` - Update working directory
+  - `--env` - Set environment variables
+  - `--timeout` - Update timeout
+  - `--retry` - Update retry count
+  - `--tag` - Replace all tags
+  - Validates mutually exclusive scheduling options
+- Updated daemon's `handleJobRun` to:
+  - Execute jobs immediately when called
+  - Support `--wait` mode that returns execution results
+  - Update job stats (runCount, lastRun, lastResult)
+  - Handle errors gracefully
+- All 384 tests passing
 
 **Test:**
 ```bash

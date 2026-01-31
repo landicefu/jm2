@@ -18,6 +18,8 @@ import { showCommand } from './commands/show.js';
 import { removeCommand } from './commands/remove.js';
 import { pauseCommand } from './commands/pause.js';
 import { resumeCommand } from './commands/resume.js';
+import { runCommand } from './commands/run.js';
+import { editCommand } from './commands/edit.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
@@ -151,6 +153,33 @@ export async function runCli() {
     .description('Resume one or more paused jobs')
     .action(async (jobs) => {
       const exitCode = await resumeCommand(jobs);
+      process.exit(exitCode);
+    });
+
+  program
+    .command('run <job>')
+    .description('Run a job manually')
+    .option('-w, --wait', 'Wait for job to complete and show output', false)
+    .action(async (job, options) => {
+      const exitCode = await runCommand(job, options);
+      process.exit(exitCode);
+    });
+
+  program
+    .command('edit <job>')
+    .description('Edit an existing job')
+    .option('--command <command>', 'New command to execute')
+    .option('-n, --name <name>', 'New job name')
+    .option('-c, --cron <expression>', 'New cron expression')
+    .option('-a, --at <datetime>', 'New datetime to run once (replaces cron)')
+    .option('-i, --delay <duration>', 'New relative time to run once (replaces cron)')
+    .option('--cwd <path>', 'New working directory')
+    .option('-e, --env <env>', 'Set environment variable (format: KEY=value, can be used multiple times)', collect, [])
+    .option('--timeout <duration>', 'New timeout for job execution')
+    .option('--retry <count>', 'New retry count on failure')
+    .option('-t, --tag <tag>', 'Set tags (replaces all existing tags, can be used multiple times)', collect, [])
+    .action(async (job, options) => {
+      const exitCode = await editCommand(job, options);
       process.exit(exitCode);
     });
 

@@ -599,7 +599,7 @@ function handleJobResume(message) {
 async function handleJobRun(message) {
   try {
     let jobId = message.jobId;
-    
+
     // If name is provided instead of ID, look it up
     if (!jobId && message.jobName) {
       const jobs = scheduler.getAllJobs();
@@ -608,14 +608,14 @@ async function handleJobRun(message) {
         jobId = job.id;
       }
     }
-    
+
     if (!jobId) {
       return {
         type: MessageType.ERROR,
         message: 'Job not found',
       };
     }
-    
+
     const job = scheduler.getJob(jobId);
     if (!job) {
       return {
@@ -623,19 +623,82 @@ async function handleJobRun(message) {
         message: 'Job not found',
       };
     }
-    
-    // For now, just return job info - actual execution will be implemented later
+
     logger?.info(`Manual job run requested via IPC: ${jobId}`);
-    return createJobRunResponse({
-      jobId,
-      status: 'queued',
-      message: 'Job queued for execution',
-    });
+
+    // Execute the job
+    if (message.wait) {
+      // Wait for execution and return results
+      const result = await executeJobAndReturnResult(job);
+      return createJobRunResponse({
+        jobId,
+        status: result.status,
+        exitCode: result.exitCode,
+        stdout: result.stdout,
+        stderr: result.stderr,
+        duration: result.duration,
+        error: result.error,
+      });
+    } else {
+      // Execute asynchronously (don't wait)
+      scheduler.executeJob(job);
+      return createJobRunResponse({
+        jobId,
+        status: 'queued',
+        message: 'Job queued for execution',
+      });
+    }
   } catch (error) {
     logger?.error(`Failed to run job: ${error.message}`);
     return {
       type: MessageType.ERROR,
       message: `Failed to run job: ${error.message}`,
+    };
+  }
+}
+
+/**
+ * Execute a job and return the result
+ * @param {object} job - Job to execute
+ * @returns {Promise<object>} Execution result
+ */
+async function executeJobAndReturnResult(job) {
+  if (!scheduler.executor) {
+    return {
+      status: 'failed',
+      error: 'No executor configured',
+    };
+  }
+
+  try {
+    const result = await scheduler.executor.executeJobWithRetry(job);
+
+    // Update job stats
+    const updatedJob = scheduler.getJob(job.id);
+    if (updatedJob) {
+      updatedJob.runCount = (updatedJob.runCount || 0) + 1;
+      updatedJob.lastRun = new Date().toISOString();
+      updatedJob.lastResult = result.status === 'success' ? 'success' : 'failed';
+      scheduler.persistJobs();
+    }
+
+    logger?.info(`Job ${job.id} completed: ${result.status}`);
+    return result;
+  } catch (error) {
+    logger?.error(`Job ${job.id} failed: ${error.message}`);
+
+    // Update job stats
+    const updatedJob = scheduler.getJob(job.id);
+    if (updatedJob) {
+      updatedJob.runCount = (updatedJob.runCount || 0) + 1;
+      updatedJob.lastRun = new Date().toISOString();
+      updatedJob.lastResult = 'failed';
+      scheduler.persistJobs();
+    }
+
+    return {
+      status: 'failed',
+      error: error.message,
     };
   }
 }
