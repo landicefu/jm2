@@ -341,6 +341,132 @@ describe('logger', () => {
     });
   });
 
+  describe('parseSize', () => {
+    it('should parse bytes', () => {
+      expect(logger.parseSize(100)).toBe(100);
+      expect(logger.parseSize('100')).toBe(100);
+      expect(logger.parseSize('100b')).toBe(100);
+    });
+
+    it('should parse kilobytes', () => {
+      expect(logger.parseSize('10kb')).toBe(10 * 1024);
+      expect(logger.parseSize('10KB')).toBe(10 * 1024);
+      expect(logger.parseSize('0.5kb')).toBe(512);
+    });
+
+    it('should parse megabytes', () => {
+      expect(logger.parseSize('10mb')).toBe(10 * 1024 * 1024);
+      expect(logger.parseSize('10MB')).toBe(10 * 1024 * 1024);
+      expect(logger.parseSize('2.5mb')).toBe(Math.floor(2.5 * 1024 * 1024));
+    });
+
+    it('should parse gigabytes', () => {
+      expect(logger.parseSize('1gb')).toBe(1024 * 1024 * 1024);
+      expect(logger.parseSize('1GB')).toBe(1024 * 1024 * 1024);
+    });
+
+    it('should handle whitespace', () => {
+      expect(logger.parseSize(' 10mb ')).toBe(10 * 1024 * 1024);
+    });
+
+    it('should return 0 for invalid input', () => {
+      expect(logger.parseSize('invalid')).toBe(0);
+      expect(logger.parseSize('')).toBe(0);
+      expect(logger.parseSize(null)).toBe(0);
+    });
+  });
+
+  describe('formatSize', () => {
+    it('should format bytes', () => {
+      expect(logger.formatSize(0)).toBe('0B');
+      expect(logger.formatSize(100)).toBe('100B');
+      expect(logger.formatSize(1023)).toBe('1023B');
+    });
+
+    it('should format kilobytes', () => {
+      expect(logger.formatSize(1024)).toBe('1.0KB');
+      expect(logger.formatSize(1536)).toBe('1.5KB');
+      expect(logger.formatSize(10 * 1024)).toBe('10.0KB');
+    });
+
+    it('should format megabytes', () => {
+      expect(logger.formatSize(1024 * 1024)).toBe('1.0MB');
+      expect(logger.formatSize(10 * 1024 * 1024)).toBe('10.0MB');
+    });
+
+    it('should format gigabytes', () => {
+      expect(logger.formatSize(1024 * 1024 * 1024)).toBe('1.0GB');
+    });
+  });
+
+  describe('log rotation', () => {
+    it('should rotate log file when size limit is reached', () => {
+      const logFile = join(testDataDir, 'rotation-test.log');
+      
+      // Create logger with small rotation size (200 bytes)
+      const log = logger.createLogger({
+        name: 'test',
+        file: logFile,
+        rotation: {
+          maxSize: 200,
+          maxFiles: 3,
+        },
+      });
+
+      // Write a long message (should be ~100+ bytes with timestamp and formatting)
+      log.info('First message with lots of content to fill up the log file quickly and trigger rotation mechanism');
+      log.info('Second message with even more content to definitely trigger rotation after first message');
+      log.info('Third message with enough content to make sure rotation happens properly');
+
+      // Check that rotation occurred
+      expect(existsSync(logFile)).toBe(true);
+      expect(existsSync(`${logFile}.1`)).toBe(true);
+    });
+
+    it('should not rotate if file size is below limit', () => {
+      const logFile = join(testDataDir, 'no-rotation-test.log');
+      
+      // Create logger with large rotation size
+      const log = logger.createLogger({
+        name: 'test',
+        file: logFile,
+        rotation: {
+          maxSize: 10000,
+          maxFiles: 3,
+        },
+      });
+
+      log.info('Short message');
+
+      expect(existsSync(logFile)).toBe(true);
+      expect(existsSync(`${logFile}.1`)).toBe(false);
+    });
+
+    it('should maintain multiple rotated files', () => {
+      const logFile = join(testDataDir, 'multi-rotation-test.log');
+      
+      // Create logger with small rotation size
+      const log = logger.createLogger({
+        name: 'test',
+        file: logFile,
+        rotation: {
+          maxSize: 150,
+          maxFiles: 3,
+        },
+      });
+
+      // Write multiple messages to trigger multiple rotations
+      for (let i = 0; i < 15; i++) {
+        log.info(`Message ${i} with enough content to trigger rotation mechanism in the logging system`);
+      }
+
+      // Should have current file + rotated files
+      expect(existsSync(logFile)).toBe(true);
+      expect(existsSync(`${logFile}.1`)).toBe(true);
+      expect(existsSync(`${logFile}.2`)).toBe(true);
+    });
+  });
+
   describe('default export', () => {
     it('should export all functions', () => {
       expect(logger.default).toBeDefined();
@@ -354,6 +480,8 @@ describe('logger', () => {
       expect(typeof logger.default.logJobComplete).toBe('function');
       expect(typeof logger.default.logJobOutput).toBe('function');
       expect(typeof logger.default.clearLogFile).toBe('function');
+      expect(typeof logger.default.parseSize).toBe('function');
+      expect(typeof logger.default.formatSize).toBe('function');
     });
   });
 });

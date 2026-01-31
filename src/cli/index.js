@@ -20,6 +20,7 @@ import { pauseCommand } from './commands/pause.js';
 import { resumeCommand } from './commands/resume.js';
 import { runCommand } from './commands/run.js';
 import { editCommand } from './commands/edit.js';
+import { configCommand } from './commands/config.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
@@ -180,6 +181,21 @@ export async function runCli() {
     .option('-t, --tag <tag>', 'Set tags (replaces all existing tags, can be used multiple times)', collect, [])
     .action(async (job, options) => {
       const exitCode = await editCommand(job, options);
+      process.exit(exitCode);
+    });
+
+  // Configuration command
+  program
+    .command('config')
+    .description('View or modify configuration settings')
+    .option('-s, --show', 'Show all configuration (default)')
+    .option('--log-max-size <size>', 'Set maximum log file size (e.g., 10mb, 50MB)')
+    .option('--log-max-files <count>', 'Set maximum number of log files to keep')
+    .option('--level <level>', 'Set log level (DEBUG, INFO, WARN, ERROR)')
+    .option('--max-concurrent <count>', 'Set maximum concurrent job executions')
+    .option('--reset', 'Reset configuration to defaults')
+    .action(async (options) => {
+      const exitCode = await configCommand(options);
       process.exit(exitCode);
     });
 

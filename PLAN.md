@@ -509,17 +509,34 @@ jm2 show test-edit
 
 ### Phase 7: Logs and History
 
-#### Step 7.1: Logging System
+#### Step 7.1: Logging System ✅ COMPLETE
 **Goal:** Implement job execution logging with size limiting.
 
 **Tasks:**
 - [x] Enhance `src/core/logger.js` for job logs
 - [x] Create log files per job
-- [ ] Add log size limiting configuration to config.json:
-  - `logMaxSize`: Maximum size per log file (default: 10MB)
-  - `logMaxFiles`: Number of rotated files to keep (default: 3)
-- [ ] Implement log rotation when size limit is reached
-- [ ] Add `jm2 config --log-max-size` and `jm2 config --log-max-files` commands
+- [x] Add log size limiting configuration to config.json:
+  - `logging.maxFileSize`: Maximum size per log file (default: 10MB)
+  - `logging.maxFiles`: Number of rotated files to keep (default: 5)
+- [x] Implement log rotation when size limit is reached
+- [x] Add `jm2 config --log-max-size` and `jm2 config --log-max-files` commands
+
+**Completed:**
+- Enhanced `src/core/logger.js` with log rotation support:
+  - Added `parseSize()` function to parse size strings (e.g., "10mb", "50KB")
+  - Added `formatSize()` function to format bytes as human-readable strings
+  - Added `rotateLogs()` function to rotate log files when size limit is reached
+  - Updated `createLogger()` to support rotation options
+  - Updated `createDaemonLogger()` and `createJobLogger()` to use config-based rotation settings
+- Created `src/cli/commands/config.js` with comprehensive configuration management:
+  - `jm2 config` - Show all configuration settings
+  - `jm2 config --log-max-size <size>` - Set maximum log file size
+  - `jm2 config --log-max-files <count>` - Set maximum number of log files
+  - `jm2 config --level <level>` - Set log level (DEBUG, INFO, WARN, ERROR)
+  - `jm2 config --max-concurrent <count>` - Set max concurrent jobs
+  - `jm2 config --reset` - Reset to defaults
+- Configuration validation ensures valid values for all settings
+- Added 13 new tests for log rotation and size parsing (397 total tests passing)
 
 **Test:**
 ```bash

@@ -3,9 +3,10 @@
  * Provides consistent logging for daemon and job execution
  */
 
-import { appendFileSync, writeFileSync, existsSync, mkdirSync } from 'node:fs';
+import { appendFileSync, writeFileSync, existsSync, mkdirSync, renameSync, statSync, unlinkSync } from 'node:fs';
 import { dirname } from 'node:path';
 import { getDaemonLogFile, getJobLogFile, ensureLogsDir } from '../utils/paths.js';
+import { getConfigValue } from './config.js';
 
 /**
  * Log levels
@@ -94,13 +95,126 @@ function ensureFileDir(filePath) {
 }
 
 /**
- * Write a log line to a file
+ * Write a log line to a file with rotation support
  * @param {string} filePath - File path
  * @param {string} line - Log line
+ * @param {object} rotation - Rotation options
+ * @param {number} rotation.maxSize - Maximum file size in bytes
+ * @param {number} rotation.maxFiles - Maximum number of log files to keep
  */
-function writeToFile(filePath, line) {
+function writeToFile(filePath, line, rotation = null) {
   ensureFileDir(filePath);
+  
+  // Check for rotation if options provided
+  if (rotation && rotation.maxSize > 0) {
+    checkAndRotate(filePath, rotation.maxSize, rotation.maxFiles || 3);
+  }
+  
   appendFileSync(filePath, line + '\n', 'utf8');
+}
+
+/**
+ * Get file size in bytes
+ * @param {string} filePath - File path
+ * @returns {number} File size in bytes, or 0 if file doesn't exist
+ */
+function getFileSize(filePath) {
+  try {
+    if (existsSync(filePath)) {
+      return statSync(filePath).size;
+    }
+  } catch {
+    // Ignore errors
+  }
+  return 0;
+}
+
+/**
+ * Rotate log files
+ * Renames existing log files: file.log -> file.log.1 -> file.log.2 -> ...
+ * @param {string} filePath - Base log file path
+ * @param {number} maxFiles - Maximum number of log files to keep (including current)
+ */
+function rotateLogs(filePath, maxFiles) {
+  // Start from the oldest file and work backwards
+  for (let i = maxFiles - 1; i >= 0; i--) {
+    const srcPath = i === 0 ? filePath : `${filePath}.${i}`;
+    const destPath = `${filePath}.${i + 1}`;
+    
+    try {
+      if (existsSync(srcPath)) {
+        if (i === maxFiles - 1) {
+          // Delete the oldest file
+          try {
+            unlinkSync(srcPath);
+          } catch {
+            // Ignore unlink errors
+          }
+        } else {
+          renameSync(srcPath, destPath);
+        }
+      }
+    } catch {
+      // Ignore rotation errors
+    }
+  }
+}
+
+/**
+ * Check if log rotation is needed and perform rotation
+ * @param {string} filePath - Log file path
+ * @param {number} maxSize - Maximum file size in bytes
+ * @param {number} maxFiles - Maximum number of log files to keep
+ */
+function checkAndRotate(filePath, maxSize, maxFiles) {
+  const fileSize = getFileSize(filePath);
+  if (fileSize >= maxSize) {
+    rotateLogs(filePath, maxFiles);
+  }
+}
+
+/**
+ * Parse size string to bytes
+ * Supports formats like: 100, 10kb, 5mb, 1gb
+ * @param {string|number} size - Size string or number (in bytes)
+ * @returns {number} Size in bytes
+ */
+export function parseSize(size) {
+  if (typeof size === 'number') {
+    return size;
+  }
+  
+  const match = String(size).trim().toLowerCase().match(/^(\d+(?:\.\d+)?)\s*(b|kb|mb|gb)?$/);
+  if (!match) {
+    return 0;
+  }
+  
+  const value = parseFloat(match[1]);
+  const unit = match[2] || 'b';
+  
+  const multipliers = {
+    'b': 1,
+    'kb': 1024,
+    'mb': 1024 * 1024,
+    'gb': 1024 * 1024 * 1024,
+  };
+  
+  return Math.floor(value * multipliers[unit]);
+}
+
+/**
+ * Format bytes to human readable string
+ * @param {number} bytes - Size in bytes
+ * @returns {string} Human readable size (e.g., "10MB")
+ */
+export function formatSize(bytes) {
+  if (bytes === 0) return '0B';
+  
+  const units = ['B', 'KB', 'MB', 'GB', 'TB'];
+  const i = Math.floor(Math.log(bytes) / Math.log(1024));
+  const value = bytes / Math.pow(1024, i);
+  
+  return `${value.toFixed(i === 0 ? 0 : 1)}${units[i]}`;
 }
 
 /**
@@ -109,10 +223,13 @@ function writeToFile(filePath, line) {
  * @param {string} options.name - Logger name (for prefixing)
  * @param {string} options.file - Log file path (optional)
  * @param {boolean} options.console - Log to console (default: false for daemon)
+ * @param {object} options.rotation - Rotation options
+ * @param {number} options.rotation.maxSize - Maximum file size in bytes
+ * @param {number} options.rotation.maxFiles - Maximum number of log files to keep
  * @returns {object} Logger instance
  */
 export function createLogger(options = {}) {
-  const { name = 'jm2', file = null, console: logToConsole = false } = options;
+  const { name = 'jm2', file = null, console: logToConsole = false, rotation = null } = options;
 
   const log = (level, message, meta = {}) => {
     if (!shouldLog(level)) {
@@ -122,7 +239,7 @@ export function createLogger(options = {}) {
     const line = formatLogLine(level, `[${name}] ${message}`, meta);
 
     if (file) {
-      writeToFile(file, line);
+      writeToFile(file, line, rotation);
     }
 
     if (logToConsole) {
@@ -149,10 +266,18 @@ export function createLogger(options = {}) {
  * @returns {object} Logger instance
  */
 export function createDaemonLogger(options = {}) {
+  // Get rotation settings from config
+  const maxFileSize = getConfigValue('logging.maxFileSize', 10 * 1024 * 1024);
+  const maxFiles = getConfigValue('logging.maxFiles', 5);
+  
   return createLogger({
     name: 'daemon',
     file: getDaemonLogFile(),
     console: options.foreground || false,
+    rotation: {
+      maxSize: maxFileSize,
+      maxFiles: maxFiles,
+    },
     ...options,
   });
 }
@@ -166,10 +291,19 @@ export function createDaemonLogger(options = {}) {
  */
 export function createJobLogger(jobName, options = {}) {
   ensureLogsDir();
+  
+  // Get rotation settings from config
+  const maxFileSize = getConfigValue('logging.maxFileSize', 10 * 1024 * 1024);
+  const maxFiles = getConfigValue('logging.maxFiles', 5);
+  
   return createLogger({
     name: jobName,
     file: getJobLogFile(jobName),
     console: false,
+    rotation: {
+      maxSize: maxFileSize,
+      maxFiles: maxFiles,
+    },
     ...options,
   });
 }
@@ -243,4 +377,6 @@ export default {
   logJobComplete,
   logJobOutput,
   clearLogFile,
+  parseSize,
+  formatSize,
 };
