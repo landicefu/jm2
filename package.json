@@ -13,7 +13,8 @@
     "test:run": "vitest run",
     "test:coverage": "vitest run --coverage",
     "lint": "eslint src/ bin/ tests/",
-    "lint:fix": "eslint src/ bin/ tests/ --fix"
+    "lint:fix": "eslint src/ bin/ tests/ --fix",
+    "reset": "node bin/jm2.js stop 2>/dev/null || true; rm -rf ~/.jm2; echo 'jm2 data reset complete'"
   },
   "keywords": [
     "cron",
