@@ -4,7 +4,7 @@
  */
 
 import { getConfig, saveConfig, setConfigValue, getConfigValue, validateConfig, DEFAULT_CONFIG } from '../../core/config.js';
-import { output } from '../utils/output.js';
+import output from '../utils/output.js';
 
 /**
  * Parse a value to the appropriate type based on the config key

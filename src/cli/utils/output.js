@@ -199,6 +199,25 @@ export function printHeader(title) {
 }
 
 /**
+ * Print a section header (alias for printHeader)
+ * @param {string} title - Section title
+ */
+export function printSection(title) {
+  console.log();
+  console.log(chalk.bold.underline(title));
+  console.log();
+}
+
+/**
+ * Print a key-value pair
+ * @param {string} key - Key label
+ * @param {*} value - Value to display
+ */
+export function printKeyValue(key, value) {
+  console.log(`  ${chalk.cyan(key)}: ${value}`);
+}
+
+/**
  * Print an empty line
  */
 export function printEmptyLine() {
@@ -236,4 +255,13 @@ export default {
   printHeader,
   printEmptyLine,
   formatJobSchedule,
+  printSection,
+  printKeyValue,
+  // Aliases for convenience
+  success: printSuccess,
+  error: printError,
+  warning: printWarning,
+  info: printInfo,
+  section: printSection,
+  keyValue: printKeyValue,
 };
