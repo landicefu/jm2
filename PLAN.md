@@ -96,8 +96,9 @@ jm2/
 | Phase 1: Foundation | ✅ Complete | Core utilities, storage, job model, config, logger |
 | Phase 2: Daemon Core | ✅ Complete | Daemon process, PID management, IPC communication |
 | Phase 3: CLI Foundation | ✅ Complete | CLI entry point, daemon commands (start/stop/restart/status) |
-| Phase 4: Job Scheduling | 🔄 **NEXT** | Cron scheduler, one-time job scheduler |
-| Phase 5: Job Execution | ⏳ Pending | Command executor, retry logic |
+| Phase 4: Job Scheduling | ✅ Complete | Cron scheduler, one-time job scheduler |
+| Phase 5: Job Execution | ✅ Complete | Command executor, retry logic |
+| Phase 6: Job Management | 🔄 **NEXT** | add/list/show/remove/pause/resume/run/edit commands |
 | Phase 6: Job Management | ⏳ Pending | add/list/show/remove/pause/resume/run/edit commands |
 | Phase 7: Logs and History | ⏳ Pending | logs/history commands, log rotation |
 | Phase 8: Utility Commands | ⏳ Pending | flush, export, import commands |
@@ -334,17 +335,30 @@ jm2 run test-timeout --wait
 # Should timeout after 5 seconds
 ```
 
-#### Step 5.2: Retry Logic
+#### Step 5.2: Retry Logic ✅ COMPLETE
 **Goal:** Implement retry on failure.
 
 **Tasks:**
-- [ ] Add retry count to job model
-- [ ] Implement retry logic in executor
-- [ ] Track retry attempts in history
+- [x] Add retry count to job model (retry and retryCount fields in JOB_DEFAULTS)
+- [x] Implement retry logic in executor (executeJobWithRetry with configurable delay)
+- [x] Track retry attempts in history (each attempt recorded separately)
+
+**Completed:**
+- Job model already has `retry` (max retries) and `retryCount` (current retry count) fields
+- `executeJobWithRetry()` function implemented with:
+  - Configurable retry count via job.retry
+  - Configurable delay between retries (default 1s)
+  - Returns attempt count in result
+  - Logs retry attempts
+- Each execution attempt is recorded separately in history
+- All tests passing (26 executor tests including 3 retry-specific tests)
 
 **Test:**
 ```bash
-# Test retry
+# Unit tests for retry logic
+npm run test:run -- --reporter=dot tests/unit/executor.test.js
+
+# Manual test
 jm2 add "exit 1" --cron "* * * * *" --name test-retry --retry 3
 jm2 run test-retry --wait
 jm2 history test-retry
