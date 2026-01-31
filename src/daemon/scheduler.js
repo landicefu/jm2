@@ -70,7 +70,46 @@ export class Scheduler {
       this.addJobToMemory(job);
     }
 
+    // Handle expired one-time jobs that were missed while daemon was stopped
+    this.handleExpiredOneTimeJobs();
+
     this.logger.debug(`Loaded ${this.jobs.size} jobs`);
+  }
+
+  /**
+   * Handle expired one-time jobs on daemon restart
+   * Jobs that are past their run time and still active should be marked as failed
+   */
+  handleExpiredOneTimeJobs() {
+    const now = new Date();
+    let expiredCount = 0;
+
+    for (const [id, job] of this.jobs) {
+      if (
+        job.type === JobType.ONCE &&
+        job.status === JobStatus.ACTIVE &&
+        job.runAt
+      ) {
+        const runAt = new Date(job.runAt);
+        if (runAt < now) {
+          // Job was scheduled to run while daemon was stopped
+          this.updateJobStatus(id, JobStatus.FAILED);
+          this.updateJob(id, {
+            lastResult: 'failed',
+            error: 'Job expired - daemon was not running at scheduled time',
+            expiredAt: now.toISOString(),
+          });
+          expiredCount++;
+          this.logger.warn(
+            `Job ${id} (${job.name || 'unnamed'}) expired - was scheduled for ${runAt.toISOString()}`
+          );
+        }
+      }
+    }
+
+    if (expiredCount > 0) {
+      this.logger.info(`Marked ${expiredCount} expired one-time job(s) as failed`);
+    }
   }
 
   /**

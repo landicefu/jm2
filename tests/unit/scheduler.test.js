@@ -26,6 +26,7 @@ describe('Scheduler', () => {
       info: vi.fn(),
       debug: vi.fn(),
       error: vi.fn(),
+      warn: vi.fn(),
     };
     storage.getJobs.mockReturnValue([]);
     scheduler = new Scheduler({ logger: mockLogger, checkIntervalMs: 100 });
@@ -461,6 +462,148 @@ describe('Scheduler', () => {
       expect(stats.pausedJobs).toBe(1);
       expect(stats.cronJobs).toBe(1);
       expect(stats.onceJobs).toBe(1);
+    });
+  });
+
+  describe('handleExpiredOneTimeJobs', () => {
+    it('should mark expired one-time jobs as failed on load', () => {
+      const pastDate = new Date(Date.now() - 60000); // 1 minute ago
+      const storedJobs = [
+        {
+          id: 1,
+          name: 'expired-job',
+          command: 'echo test',
+          type: JobType.ONCE,
+          runAt: pastDate.toISOString(),
+          status: JobStatus.ACTIVE,
+        },
+      ];
+      storage.getJobs.mockReturnValue(storedJobs);
+
+      scheduler.loadJobs();
+
+      const job = scheduler.getJob(1);
+      expect(job.status).toBe(JobStatus.FAILED);
+      expect(job.lastResult).toBe('failed');
+      expect(job.error).toContain('expired');
+      expect(job.expiredAt).toBeDefined();
+      expect(mockLogger.warn).toHaveBeenCalledWith(
+        expect.stringContaining('expired')
+      );
+    });
+
+    it('should not mark non-expired one-time jobs as failed', () => {
+      const futureDate = new Date(Date.now() + 60000); // 1 minute from now
+      const storedJobs = [
+        {
+          id: 1,
+          name: 'future-job',
+          command: 'echo test',
+          type: JobType.ONCE,
+          runAt: futureDate.toISOString(),
+          status: JobStatus.ACTIVE,
+        },
+      ];
+      storage.getJobs.mockReturnValue(storedJobs);
+
+      scheduler.loadJobs();
+
+      const job = scheduler.getJob(1);
+      expect(job.status).toBe(JobStatus.ACTIVE);
+    });
+
+    it('should not mark already completed one-time jobs', () => {
+      const pastDate = new Date(Date.now() - 60000);
+      const storedJobs = [
+        {
+          id: 1,
+          name: 'completed-job',
+          command: 'echo test',
+          type: JobType.ONCE,
+          runAt: pastDate.toISOString(),
+          status: JobStatus.COMPLETED,
+        },
+      ];
+      storage.getJobs.mockReturnValue(storedJobs);
+
+      scheduler.loadJobs();
+
+      const job = scheduler.getJob(1);
+      expect(job.status).toBe(JobStatus.COMPLETED);
+      expect(mockLogger.warn).not.toHaveBeenCalledWith(
+        expect.stringContaining('expired')
+      );
+    });
+
+    it('should not mark already failed one-time jobs', () => {
+      const pastDate = new Date(Date.now() - 60000);
+      const storedJobs = [
+        {
+          id: 1,
+          name: 'failed-job',
+          command: 'echo test',
+          type: JobType.ONCE,
+          runAt: pastDate.toISOString(),
+          status: JobStatus.FAILED,
+        },
+      ];
+      storage.getJobs.mockReturnValue(storedJobs);
+
+      scheduler.loadJobs();
+
+      const job = scheduler.getJob(1);
+      expect(job.status).toBe(JobStatus.FAILED);
+      expect(mockLogger.warn).not.toHaveBeenCalledWith(
+        expect.stringContaining('expired')
+      );
+    });
+
+    it('should not mark cron jobs as expired', () => {
+      const storedJobs = [
+        {
+          id: 1,
+          name: 'cron-job',
+          command: 'echo test',
+          type: JobType.CRON,
+          cron: '* * * * *',
+          status: JobStatus.ACTIVE,
+        },
+      ];
+      storage.getJobs.mockReturnValue(storedJobs);
+
+      scheduler.loadJobs();
+
+      const job = scheduler.getJob(1);
+      expect(job.status).toBe(JobStatus.ACTIVE);
+    });
+
+    it('should handle multiple expired jobs', () => {
+      const pastDate = new Date(Date.now() - 60000);
+      const storedJobs = [
+        {
+          id: 1,
+          name: 'expired-1',
+          command: 'echo test',
+          type: JobType.ONCE,
+          runAt: pastDate.toISOString(),
+          status: JobStatus.ACTIVE,
+        },
+        {
+          id: 2,
+          name: 'expired-2',
+          command: 'echo test',
+          type: JobType.ONCE,
+          runAt: pastDate.toISOString(),
+          status: JobStatus.ACTIVE,
+        },
+      ];
+      storage.getJobs.mockReturnValue(storedJobs);
+
+      scheduler.loadJobs();
+
+      expect(scheduler.getJob(1).status).toBe(JobStatus.FAILED);
+      expect(scheduler.getJob(2).status).toBe(JobStatus.FAILED);
+      expect(mockLogger.info).toHaveBeenCalledWith('Marked 2 expired one-time job(s) as failed');
     });
   });
 

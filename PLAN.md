@@ -226,7 +226,7 @@ jm2 restart
 
 ---
 
-### Phase 4: Job Scheduling 🔄 IN PROGRESS
+### Phase 4: Job Scheduling ✅ COMPLETE
 
 #### Step 4.1: Cron Scheduler ✅ COMPLETE
 **Goal:** Implement periodic job scheduling using cron expressions.
@@ -254,17 +254,33 @@ jm2 restart
 npm run test:run -- --reporter=dot tests/unit/cron.test.js
 ```
 
-#### Step 4.2: One-time Job Scheduler
+#### Step 4.2: One-time Job Scheduler ✅ COMPLETE
 **Goal:** Implement one-time job scheduling (at and in).
 
 **Tasks:**
-- [ ] Extend scheduler for one-time jobs
-- [ ] Implement `--at` datetime parsing
-- [ ] Implement `--in` relative time parsing
-- [ ] Handle expired one-time jobs on daemon restart
+- [x] Extend scheduler for one-time jobs (already supported in scheduler.js)
+- [x] Create `src/utils/datetime.js` - datetime parsing utilities
+- [x] Implement `--at` datetime parsing (ISO 8601, date/time, today/tomorrow keywords)
+- [x] Implement `--in` relative time parsing (converts duration to future datetime)
+- [x] Handle expired one-time jobs on daemon restart (mark as FAILED with error message)
+
+**Completed:**
+- Created `src/utils/datetime.js` with comprehensive datetime parsing:
+  - `parseDateTime()` - supports ISO 8601, "2026-01-31", "today 10:00", "tomorrow 14:30", "now"
+  - `parseRunIn()` - converts duration strings like "1h30m" to future Date
+  - `parseRunAtOption()` - unified interface for --at and --in options
+  - `isDateTimePast()` - checks if a datetime has expired
+  - `formatDateTime()` - formats dates for display
+  - `getRelativeTimeDescription()` - human-readable relative time
+- Added `handleExpiredOneTimeJobs()` to scheduler to handle missed one-time jobs on daemon restart
+- Created comprehensive tests (60+ tests for datetime utilities, 6 tests for expired job handling)
+- All 358 tests passing
 
 **Test:**
 ```bash
+# Run all tests
+npm run test:run -- --reporter=dot
+
 # Test one-time job with --in
 jm2 add "echo 'hello'" --in 1m --name test-once
 jm2 list
