@@ -293,16 +293,28 @@ jm2 list  # Job should be marked as completed
 
 ### Phase 5: Job Execution
 
-#### Step 5.1: Command Executor
+#### Step 5.1: Command Executor ✅ COMPLETE
 **Goal:** Implement command execution with proper process management.
 
 **Tasks:**
-- [ ] Create `src/daemon/executor.js` - Command execution
-- [ ] Implement spawn with shell
-- [ ] Implement working directory support
-- [ ] Implement environment variables
-- [ ] Implement timeout handling
-- [ ] Implement output capture and logging
+- [x] Create `src/daemon/executor.js` - Command execution
+- [x] Implement spawn with shell
+- [x] Implement working directory support
+- [x] Implement environment variables
+- [x] Implement timeout handling (process group killing for proper cleanup)
+- [x] Implement output capture and logging
+
+**Completed:**
+- Created `src/daemon/executor.js` with comprehensive command execution support:
+  - `executeJob()` - Execute a single job with full process management
+  - `executeJobWithRetry()` - Execute with automatic retry on failure
+  - `killJob()` - Kill running processes (with process group support)
+  - `formatDuration()` - Human-readable duration formatting
+  - Process group management via `detached: true` for proper cleanup of child processes
+  - Timeout handling with SIGTERM -> SIGKILL escalation
+  - stdout/stderr capture and logging to job-specific log files
+  - Execution history recording via storage module
+- Created comprehensive unit tests (26 tests passing, 1 skipped for timeout edge case)
 
 **Test:**
 ```bash
