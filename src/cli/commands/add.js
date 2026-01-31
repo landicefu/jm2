@@ -10,12 +10,57 @@ import { isDaemonRunning } from '../../daemon/index.js';
 import { parseDateTime, parseRunIn } from '../../utils/datetime.js';
 
 /**
+ * Print common examples of jm2 add command
+ */
+function printExamples() {
+  console.log(`
+Common examples of jm2 add:
+
+  # Run a command once at a specific time
+  jm2 add "backup.sh" --at "today 14:30"
+  jm2 add "backup.sh" --at "tomorrow 09:00"
+  jm2 add "backup.sh" --at "2025-12-25 08:00"
+
+  # Run a command after a delay
+  jm2 add "cleanup.sh" --delay "30m"
+  jm2 add "cleanup.sh" --delay "2h"
+  jm2 add "cleanup.sh" --delay "1d"
+
+  # Run a command on a schedule (cron)
+  jm2 add "daily-report.sh" --cron "0 9 * * *"
+  jm2 add "weekly-backup.sh" --cron "0 0 * * 0"
+  jm2 add "monthly-task.sh" --cron "0 0 1 * *"
+
+  # Add a job with a name
+  jm2 add "backup.sh" --name "daily-backup" --cron "0 2 * * *"
+
+  # Add a job with tags
+  jm2 add "deploy.sh" --tag "production" --tag "deployment" --delay "5m"
+
+  # Add a job with environment variables
+  jm2 add "script.sh" --env "NODE_ENV=production" --env "DEBUG=true" --cron "0 */6 * * *"
+
+  # Add a job with a working directory
+  jm2 add "npm run build" --cwd /path/to/project --at "today 15:00"
+
+  # Add a job with timeout and retry
+  jm2 add "long-running.sh" --timeout "2h" --retry 3 --cron "0 3 * * *"
+`);
+}
+
+/**
  * Execute the add command
  * @param {string} command - Command to execute
  * @param {object} options - Command options
  * @returns {Promise<number>} Exit code
  */
 export async function addCommand(command, options = {}) {
+  // Handle --examples flag
+  if (options.examples) {
+    printExamples();
+    return 0;
+  }
+
   // Check if daemon is running
   if (!isDaemonRunning()) {
     printError('Daemon is not running. Start it with: jm2 start');

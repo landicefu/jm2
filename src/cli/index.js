@@ -101,7 +101,7 @@ export async function runCli() {
 
   // Job management commands
   program
-    .command('add <command>')
+    .command('add [command]')
     .description('Add a new job')
     .option('-n, --name <name>', 'Job name (unique identifier)')
     .option('-c, --cron <expression>', 'Cron expression for recurring jobs')
@@ -112,6 +112,7 @@ export async function runCli() {
     .option('-e, --env <env>', 'Environment variable (format: KEY=value, can be used multiple times)', collect, [])
     .option('--timeout <duration>', 'Timeout for job execution (e.g., "30m", "2h")')
     .option('--retry <count>', 'Number of retry attempts on failure', '0')
+    .option('--examples', 'Show common examples of jm2 add')
     .action(async (command, options) => {
       const exitCode = await addCommand(command, options);
       process.exit(exitCode);
