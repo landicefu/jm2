@@ -18,8 +18,8 @@ export async function startCommand(options = {}) {
   // Check if daemon is already running
   if (isDaemonRunning()) {
     const { pid } = getDaemonStatus();
-    printError(`Daemon is already running (PID: ${pid})`);
-    return 1;
+    printInfo(`Daemon is already running (PID: ${pid})`);
+    return 0;
   }
 
   try {
