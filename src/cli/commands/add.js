@@ -122,6 +122,11 @@ export async function addCommand(command, options = {}) {
 
     // Optional fields
     if (options.name) {
+      // Check if name is a pure number (would conflict with job ID access)
+      if (/^\d+$/.test(options.name)) {
+        printError('Job name cannot be a pure number (conflicts with job ID)');
+        return 1;
+      }
       jobData.name = options.name;
     }
 
