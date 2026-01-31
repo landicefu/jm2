@@ -484,15 +484,27 @@ jm2 show test-edit
 ### Phase 7: Logs and History
 
 #### Step 7.1: Logging System
-**Goal:** Implement job execution logging.
+**Goal:** Implement job execution logging with size limiting.
 
 **Tasks:**
-- [ ] Enhance `src/core/logger.js` for job logs
-- [ ] Create log files per job
-- [ ] Implement log rotation
+- [x] Enhance `src/core/logger.js` for job logs
+- [x] Create log files per job
+- [ ] Add log size limiting configuration to config.json:
+  - `logMaxSize`: Maximum size per log file (default: 10MB)
+  - `logMaxFiles`: Number of rotated files to keep (default: 3)
+- [ ] Implement log rotation when size limit is reached
+- [ ] Add `jm2 config --log-max-size` and `jm2 config --log-max-files` commands
 
 **Test:**
 ```bash
+# Check log configuration
+jm2 config --show
+
+# Set log limits
+jm2 config --log-max-size 50mb
+jm2 config --log-max-files 5
+
+# Create a job and check logs
 jm2 add "echo 'log test'" --cron "* * * * *" --name log-test
 jm2 run log-test
 ls ~/.jm2/logs/
@@ -503,18 +515,36 @@ cat ~/.jm2/logs/log-test.log
 **Goal:** Implement log viewing and history commands.
 
 **Tasks:**
-- [ ] Create `src/cli/commands/logs.js`
-- [ ] Create `src/cli/commands/history.js`
-- [ ] Implement log following (--follow)
-- [ ] Implement date filtering
+- [ ] Create `src/cli/commands/logs.js` with options:
+  - `--lines, -n`: Number of lines to show from tail (default: 50)
+  - `--follow, -f`: Watch/follow log output in real-time
+  - `--since`: Show logs since a specific time (e.g., "1h ago", "2026-01-31")
+  - `--until`: Show logs until a specific time
+  - `--timestamps`: Show timestamps (default: true, use --no-timestamps to hide)
+- [ ] Create `src/cli/commands/history.js` to show execution history
+- [ ] Implement efficient tail functionality for large log files
+- [ ] Implement log following with file watching
 
 **Test:**
 ```bash
+# Show last 50 lines (default)
 jm2 logs log-test
-jm2 logs log-test --lines 10
-jm2 logs --follow &  # Background, then trigger a job
+
+# Show last 100 lines
+jm2 logs log-test --lines 100
+jm2 logs log-test -n 100
+
+# Follow/watch logs in real-time (like tail -f)
+jm2 logs log-test --follow
+jm2 logs log-test -f
+
+# Follow and run job in another terminal
 jm2 run log-test
 
+# Show logs from last hour
+jm2 logs log-test --since 1h
+
+# Show history
 jm2 history log-test
 jm2 history --failed
 ```

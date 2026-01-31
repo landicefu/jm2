@@ -16,6 +16,7 @@ import {
   formatJobSchedule,
 } from '../utils/output.js';
 import { isDaemonRunning } from '../../daemon/index.js';
+import { getJobLogFile } from '../../utils/paths.js';
 import chalk from 'chalk';
 
 /**
@@ -135,6 +136,11 @@ function printJobDetails(job) {
   console.log();
   console.log(`${chalk.bold('Created:')}      ${formatDate(job.createdAt)}`);
   console.log(`${chalk.bold('Updated:')}      ${formatDate(job.updatedAt)}`);
+
+  // Log file path
+  console.log();
+  const logFile = getJobLogFile(job.name || job.id);
+  console.log(`${chalk.bold('Log File:')}     ${logFile}`);
 
   // Execution info
   if (job.lastExitCode !== undefined && job.lastExitCode !== null) {
