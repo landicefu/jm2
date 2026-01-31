@@ -139,7 +139,7 @@ function printJobDetails(job) {
 
   // Log file path
   console.log();
-  const logFile = getJobLogFile(job.name || job.id);
+  const logFile = getJobLogFile(job.name || `job-${job.id}`);
   console.log(`${chalk.bold('Log File:')}     ${logFile}`);
 
   // Execution info

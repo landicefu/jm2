@@ -58,7 +58,7 @@ export async function logsCommand(jobRef, options = {}) {
     }
 
     const job = response.job;
-    const logFile = getJobLogFile(job.name || String(job.id));
+    const logFile = getJobLogFile(job.name || `job-${job.id}`);
 
     // Check if log file exists
     if (!existsSync(logFile)) {
