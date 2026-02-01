@@ -4,9 +4,19 @@
   "description": "Job Manager 2 - A simple yet powerful job scheduler combining cron and at functionality",
   "type": "module",
   "main": "src/cli/index.js",
+  "exports": {
+    ".": "./src/cli/index.js",
+    "./package.json": "./package.json"
+  },
   "bin": {
     "jm2": "./bin/jm2.js"
   },
+  "files": [
+    "bin/",
+    "src/",
+    "README.md",
+    "GNU-AGPL-3.0"
+  ],
   "scripts": {
     "start": "node src/daemon/index.js",
     "test": "vitest",
@@ -27,11 +37,15 @@
     "periodic",
     "timer"
   ],
-  "author": "",
+  "author": "Landice Fu <landice.fu@gmail.com>",
   "license": "AGPL-3.0",
   "engines": {
     "node": ">=20.0.0"
   },
+  "publishConfig": {
+    "access": "public"
+  },
+  "sideEffects": false,
   "dependencies": {
     "better-sqlite3": "^11.0.0",
     "chalk": "^5.4.1",
@@ -49,7 +63,7 @@
     "type": "git",
     "url": "git+https://github.com/landicefu/jm2"
   },
-   "bugs": {
+  "bugs": {
     "url": "https://github.com/landicefu/jm2/issues"
   },
   "homepage": "https://github.com/landicefu/jm2#readme"
