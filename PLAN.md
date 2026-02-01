@@ -101,7 +101,7 @@ jm2/
 | Phase 6: Job Management | ✅ Complete | add/list/show/remove/pause/resume/run/edit commands |
 | Phase 7: Logs and History | ✅ Complete | logs/history commands, log rotation |
 | Phase 8: Utility Commands | ✅ Complete | flush, export, import commands |
-| Phase 9: Polish | ⏳ Pending | Error handling, edge cases, persistence |
+| Phase 9: Polish | ✅ Complete | Error handling, edge cases, persistence |
 | Phase 11: SQLite History | ✅ Complete | Migrate history from JSON to SQLite with config enforcement |
 | Phase 12: System Service | ✅ Complete | install/uninstall commands for system startup registration |
 
@@ -746,14 +746,21 @@ jm2 show nonexistent
 # Should show error
 ```
 
-#### Step 9.2: Daemon Persistence
+#### Step 9.2: Daemon Persistence ✅ COMPLETE
 **Goal:** Ensure jobs persist across daemon restarts.
 
 **Tasks:**
-- [ ] Load jobs from storage on daemon start
-- [ ] Reschedule all active jobs
-- [ ] Handle expired one-time jobs
-- [ ] Verify job state consistency
+- [x] Load jobs from storage on daemon start
+- [x] Reschedule all active jobs
+- [x] Handle expired one-time jobs
+- [x] Verify job state consistency
+
+**Completed:**
+- Scheduler's `loadJobs()` method loads all jobs from storage on daemon start
+- `handleExpiredOneTimeJobs()` marks expired one-time jobs as FAILED when daemon restarts
+- Jobs are automatically rescheduled with next run times calculated
+- Job state (status, runCount, lastRun) is preserved across restarts
+- All scheduler persistence tests passing
 
 **Test:**
 ```bash
