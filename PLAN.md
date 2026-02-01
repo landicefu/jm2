@@ -103,6 +103,7 @@ jm2/
 | Phase 8: Utility Commands | ⏳ Pending | flush, export, import commands |
 | Phase 9: Polish | ⏳ Pending | Error handling, edge cases, persistence |
 | Phase 11: SQLite History | ✅ Complete | Migrate history from JSON to SQLite with config enforcement |
+| Phase 12: System Service | ⏳ Pending | install/uninstall commands for system startup registration |
 
 ---
 
@@ -857,6 +858,220 @@ ls -la ~/.jm2/history.db
 
 ---
 
+### Phase 12: System Service Install/Uninstall ⏳ PENDING
+
+#### Step 12.1: Research Service Registration Mechanisms
+**Goal:** Research how to register `jm2 start` to run at system boot on Mac, Linux, and Windows.
+
+**Reference Repositories:**
+- `nospaceships/node-os-service` - Windows and Linux service implementation
+- `coreybutler/node-mac` - macOS daemon implementation
+
+**Tasks:**
+- [ ] Clone reference repos to temporary folders for readonly analysis
+- [ ] Analyze Windows service registration mechanism
+- [ ] Analyze Linux systemd service registration
+- [ ] Analyze macOS launchd plist registration
+- [ ] Document the key implementation details for each platform
+- [ ] Delete temporary cloned repositories after research
+
+**Platform-Specific Research:**
+
+**Windows:**
+- Service registration via `sc.exe` or WMI
+- Service wrapper executable requirements
+- Registry locations for service configuration
+- Elevated privileges (UAC) handling
+
+**Linux:**
+- Systemd service file location: `/etc/systemd/system/`
+- Service file format and requirements
+- Commands: `systemctl enable`, `systemctl start`
+- Root/sudo permission requirements
+
+**macOS:**
+- LaunchAgent vs LaunchDaemon (user vs system level)
+- Plist file location: `~/Library/LaunchAgents/` (user) or `/Library/LaunchDaemons/` (system)
+- Plist file format and requirements
+- Commands: `launchctl load`, `launchctl bootstrap`
+- Root permission for system-level daemons
+
+#### Step 12.2: Design Install/Uninstall Commands
+**Goal:** Design the `jm2 install` and `jm2 uninstall` CLI commands.
+
+**Tasks:**
+- [ ] Design CLI interface: `jm2 install [--user|--system]` and `jm2 uninstall [--user|--system]`
+- [ ] Determine default behavior (user-level vs system-level)
+- [ ] Design privilege escalation handling (sudo prompt on Unix, UAC on Windows)
+- [ ] Define error handling for permission denied scenarios
+- [ ] Document the expected user flow
+
+**Considerations:**
+- `--user` flag: Install for current user only (no root required on Unix)
+- `--system` flag: Install system-wide (requires root/admin)
+- Default: user-level installation (safer, no elevation needed)
+- Cross-platform privilege detection
+
+#### Step 12.3: Implement Service Registration (Windows)
+**Goal:** Implement Windows service registration.
+
+**Tasks:**
+- [ ] Create service wrapper script/executable that runs `jm2 start`
+- [ ] Implement service installation using `sc.exe` or native Windows APIs
+- [ ] Implement service configuration (auto-start on boot)
+- [ ] Implement service uninstallation
+- [ ] Handle UAC elevation when needed
+- [ ] Test on Windows
+
+**Test:**
+```powershell
+# Install as user-level service (if possible) or system service
+jm2 install --system
+
+# Verify service is registered
+sc query jm2
+
+# Reboot and verify daemon starts automatically
+
+# Uninstall service
+jm2 uninstall --system
+```
+
+#### Step 12.4: Implement Service Registration (Linux)
+**Goal:** Implement Linux systemd service registration.
+
+**Tasks:**
+- [ ] Create systemd service template file
+- [ ] Implement service file generation with correct paths
+- [ ] Implement `systemctl` command execution with sudo
+- [ ] Implement install command (copy service file, enable, start)
+- [ ] Implement uninstall command (stop, disable, remove service file)
+- [ ] Handle sudo password prompt gracefully
+- [ ] Test on Linux distributions with systemd
+
+**Test:**
+```bash
+# Install as user service (no sudo needed for user-level)
+jm2 install --user
+
+# Or install as system service (will prompt for sudo)
+jm2 install --system
+
+# Verify service status
+systemctl --user status jm2  # for user install
+# or
+sudo systemctl status jm2    # for system install
+
+# Reboot and verify daemon starts automatically
+
+# Uninstall
+jm2 uninstall --user
+# or
+jm2 uninstall --system
+```
+
+#### Step 12.5: Implement Service Registration (macOS)
+**Goal:** Implement macOS launchd plist registration.
+
+**Tasks:**
+- [ ] Create launchd plist template
+- [ ] Implement plist file generation with correct paths
+- [ ] Implement `launchctl` command execution
+- [ ] Implement install command (copy plist, load, start)
+- [ ] Implement uninstall command (unload, remove plist)
+- [ ] Handle sudo for system-level installation
+- [ ] Test on macOS
+
+**Test:**
+```bash
+# Install as user LaunchAgent
+jm2 install --user
+
+# Or install as system LaunchDaemon (requires sudo)
+jm2 install --system
+
+# Verify service status
+launchctl list | grep jm2
+
+# Reboot and verify daemon starts automatically
+
+# Uninstall
+jm2 uninstall --user
+# or
+jm2 uninstall --system
+```
+
+#### Step 12.6: Implement Privilege Elevation
+**Goal:** Implement cross-platform privilege elevation for system-level installation.
+
+**Tasks:**
+- [ ] Detect current privilege level (admin/root vs regular user)
+- [ ] Implement Unix sudo command wrapper with password prompt
+- [ ] Implement Windows UAC elevation detection
+- [ ] Provide clear error messages when elevation fails
+- [ ] Allow pre-authenticated sudo (reuse existing sudo session)
+
+**Unix (Linux/macOS) Approach:**
+- Check if running as root: `process.getuid() === 0`
+- Use `sudo` command for privilege escalation
+- Execute: `sudo systemctl enable jm2` etc.
+- Handle password prompt: sudo will prompt interactively
+
+**Windows Approach:**
+- Check if running as admin: Windows API or PowerShell
+- If not admin, relaunch with UAC elevation
+- Use Windows service APIs directly if possible
+
+#### Step 12.7: Create CLI Commands
+**Goal:** Create `jm2 install` and `jm2 uninstall` CLI commands.
+
+**Tasks:**
+- [ ] Create `src/cli/commands/install.js` - Install command implementation
+- [ ] Create `src/cli/commands/uninstall.js` - Uninstall command implementation
+- [ ] Add commands to CLI in `src/cli/index.js`
+- [ ] Implement platform detection (win32, linux, darwin)
+- [ ] Implement platform-specific install/uninstall logic
+- [ ] Add progress feedback and error handling
+
+**CLI Interface:**
+```
+jm2 install [options]
+  Register jm2 daemon to start on system boot
+
+  Options:
+    --user     Install for current user only (default)
+    --system   Install system-wide (requires admin/root)
+    -h, --help display help for command
+
+jm2 uninstall [options]
+  Unregister jm2 daemon from system startup
+
+  Options:
+    --user     Uninstall user-level registration (default)
+    --system   Uninstall system-wide registration (requires admin/root)
+    -h, --help display help for command
+```
+
+#### Step 12.8: Testing and Documentation
+**Goal:** Test install/uninstall on all platforms and document usage.
+
+**Tasks:**
+- [ ] Test on Windows (user and system installation)
+- [ ] Test on Linux with systemd (user and system installation)
+- [ ] Test on macOS (user and system installation)
+- [ ] Test privilege escalation scenarios
+- [ ] Update README.md with install/uninstall documentation
+- [ ] Add troubleshooting section for common permission issues
+
+**Test Checklist:**
+- [ ] Install --user works without sudo/admin
+- [ ] Install --system prompts for elevation
+- [ ] Daemon starts automatically after reboot
+- [ ] Uninstall removes all traces
+- [ ] Error messages are clear when permissions are insufficient
+
+---
+
 ## Dependencies
 
 | Package | Version | Purpose |
@@ -917,6 +1132,11 @@ ls -la ~/.jm2/history.db
    - Error handling complete
    - Persistence verified
 
-10. **M10: Release** (Steps 10.1-10.3)
-    - Tests passing
-    - Documentation complete
+10. **M10: System Service** (Steps 12.1-12.8)
+    - install/uninstall commands working
+    - Cross-platform service registration (Windows, Linux, macOS)
+    - Privilege elevation handling
+
+11. **M11: Release** (Steps 10.1-10.3)
+     - Tests passing
+     - Documentation complete
