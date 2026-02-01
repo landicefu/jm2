@@ -3,7 +3,7 @@
  * Provides consistent paths for data directory, config files, logs, etc.
  */
 
-import { homedir } from 'node:os';
+import { homedir, tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { mkdirSync, existsSync } from 'node:fs';
 
@@ -11,6 +11,36 @@ import { mkdirSync, existsSync } from 'node:fs';
  * Default data directory name
  */
 const DATA_DIR_NAME = '.jm2';
+
+/**
+ * Get the runtime directory for sockets
+ * Uses platform-specific standard locations:
+ * - Linux: /run/user/<uid>/jm2/ (XDG standard)
+ * - macOS: ~/Library/Caches/jm2/
+ * - Others: ~/.jm2/
+ * @returns {string} The runtime directory path
+ */
+function getRuntimeDir() {
+  // Allow explicit override
+  if (process.env.JM2_RUNTIME_DIR) {
+    return process.env.JM2_RUNTIME_DIR;
+  }
+
+  if (process.platform === 'linux') {
+    // XDG Base Directory Specification - user-specific runtime
+    const uid = process.getuid?.() || 0;
+    const xdgRuntimeDir = process.env.XDG_RUNTIME_DIR || `/run/user/${uid}`;
+    return join(xdgRuntimeDir, 'jm2');
+  }
+
+  if (process.platform === 'darwin') {
+    // macOS standard - use Library/Caches for runtime files
+    return join(homedir(), 'Library', 'Caches', 'jm2');
+  }
+
+  // Fallback to data directory for other platforms
+  return getDataDir();
+}
 
 /**
  * Get the base data directory path (~/.jm2/)
@@ -75,7 +105,8 @@ export function getJobLogFile(jobName) {
 
 /**
  * Get the IPC socket path
- * On Unix: ~/.jm2/daemon.sock
+ * On Linux: /run/user/<uid>/jm2/daemon.sock
+ * On macOS: ~/Library/Caches/jm2/daemon.sock
  * On Windows: \\.\pipe\jm2-daemon
  * @returns {string} The socket path
  */
@@ -83,7 +114,20 @@ export function getSocketPath() {
   if (process.platform === 'win32') {
     return '\\\\.\\pipe\\jm2-daemon';
   }
-  return join(getDataDir(), 'daemon.sock');
+  return join(getRuntimeDir(), 'daemon.sock');
+}
+
+/**
+ * Ensure the runtime directory exists
+ * Creates platform-specific runtime directory if it doesn't exist
+ * @returns {string} The runtime directory path
+ */
+export function ensureRuntimeDir() {
+  const runtimeDir = getRuntimeDir();
+  if (!existsSync(runtimeDir)) {
+    mkdirSync(runtimeDir, { recursive: true });
+  }
+  return runtimeDir;
 }
 
 /**
@@ -159,6 +203,7 @@ export default {
   getHistoryDbFile,
   ensureDataDir,
   ensureLogsDir,
+  ensureRuntimeDir,
   dataDirExists,
   pidFileExists,
 };

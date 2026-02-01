@@ -4,7 +4,7 @@
 
 import { createServer } from 'node:net';
 import { unlinkSync, existsSync } from 'node:fs';
-import { getSocketPath, ensureDataDir } from '../utils/paths.js';
+import { getSocketPath, ensureDataDir, ensureRuntimeDir } from '../utils/paths.js';
 import { MessageType, createErrorResponse, createPongResponse } from './protocol.js';
 
 /**
@@ -22,6 +22,7 @@ export function startIpcServer(options = {}) {
   }
 
   ensureDataDir();
+  ensureRuntimeDir();
 
   const server = createServer(socket => {
     let buffer = '';

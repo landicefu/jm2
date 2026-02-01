@@ -94,15 +94,37 @@ describe('paths', () => {
   });
 
   describe('getSocketPath', () => {
-    it('should return socket path in data directory on Unix', () => {
-      if (process.platform !== 'win32') {
-        expect(paths.getSocketPath()).toBe(join(testDataDir, 'daemon.sock'));
-      }
-    });
-
     it('should return named pipe path on Windows', () => {
       if (process.platform === 'win32') {
         expect(paths.getSocketPath()).toBe('\\\\.\\pipe\\jm2-daemon');
+      }
+    });
+
+    it('should use JM2_RUNTIME_DIR when set', async () => {
+      if (process.platform !== 'win32') {
+        const runtimeDir = join(tmpdir(), `jm2-runtime-test-${Date.now()}`);
+        process.env.JM2_RUNTIME_DIR = runtimeDir;
+        vi.resetModules();
+        const freshPaths = await import('../../src/utils/paths.js');
+        expect(freshPaths.getSocketPath()).toBe(join(runtimeDir, 'daemon.sock'));
+        delete process.env.JM2_RUNTIME_DIR;
+      }
+    });
+  });
+
+  describe('ensureRuntimeDir', () => {
+    it('should create runtime directory if it does not exist', () => {
+      if (process.platform !== 'win32') {
+        const runtimeDir = join(tmpdir(), `jm2-runtime-${Date.now()}`);
+        process.env.JM2_RUNTIME_DIR = runtimeDir;
+        expect(existsSync(runtimeDir)).toBe(false);
+        const result = paths.ensureRuntimeDir();
+        expect(result).toBe(runtimeDir);
+        expect(existsSync(runtimeDir)).toBe(true);
+        delete process.env.JM2_RUNTIME_DIR;
+        if (existsSync(runtimeDir)) {
+          rmSync(runtimeDir, { recursive: true, force: true });
+        }
       }
     });
   });
@@ -185,6 +207,7 @@ describe('paths', () => {
       expect(typeof paths.default.getHistoryFile).toBe('function');
       expect(typeof paths.default.ensureDataDir).toBe('function');
       expect(typeof paths.default.ensureLogsDir).toBe('function');
+      expect(typeof paths.default.ensureRuntimeDir).toBe('function');
       expect(typeof paths.default.dataDirExists).toBe('function');
       expect(typeof paths.default.pidFileExists).toBe('function');
     });
