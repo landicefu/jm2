@@ -28,7 +28,7 @@
     "timer"
   ],
   "author": "",
-  "license": "MIT",
+  "license": "AGPL-3.0",
   "engines": {
     "node": ">=20.0.0"
   },
@@ -47,10 +47,10 @@
   },
   "repository": {
     "type": "git",
-    "url": ""
+    "url": "git+https://github.com/landicefu/jm2"
   },
-  "bugs": {
-    "url": ""
+   "bugs": {
+    "url": "https://github.com/landicefu/jm2/issues"
   },
-  "homepage": ""
+  "homepage": "https://github.com/landicefu/jm2#readme"
 }

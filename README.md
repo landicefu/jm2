@@ -579,4 +579,4 @@ jm2 add "notify-send 'Meeting in 5 minutes!'" \
 
 ## License
 
-MIT
+jm2 is made available under the terms of the GNU Affero General Public License 3.0 (AGPL 3.0). For other licenses contact [me](mailto:landicefu@gmail.com).
