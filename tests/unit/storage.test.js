@@ -9,6 +9,7 @@ import { tmpdir } from 'node:os';
 
 let storage;
 let testDataDir;
+let historyDb;
 
 describe('storage', () => {
   const originalEnv = process.env.JM2_DATA_DIR;
@@ -22,9 +23,18 @@ describe('storage', () => {
     // Re-import the module to pick up the new env var
     vi.resetModules();
     storage = await import('../../src/core/storage.js');
+    // Also import history-db to close database in afterEach
+    historyDb = await import('../../src/core/history-db.js');
   });
 
   afterEach(() => {
+    // Close database connection if open
+    try {
+      historyDb.closeDatabase();
+    } catch {
+      // Ignore errors if database wasn't opened
+    }
+
     // Restore original env
     if (originalEnv !== undefined) {
       process.env.JM2_DATA_DIR = originalEnv;
@@ -372,6 +382,10 @@ describe('storage', () => {
       it('should add entry with timestamp', () => {
         const entry = storage.addHistoryEntry({
           jobId: 1,
+          jobName: 'test-job',
+          command: 'echo test',
+          status: 'success',
+          startTime: '2024-01-01T00:00:00.000Z',
           exitCode: 0,
         });
         
@@ -383,6 +397,10 @@ describe('storage', () => {
         const timestamp = '2024-01-01T00:00:00.000Z';
         const entry = storage.addHistoryEntry({
           jobId: 1,
+          jobName: 'test-job',
+          command: 'echo test',
+          status: 'success',
+          startTime: '2024-01-01T00:00:00.000Z',
           timestamp,
         });
         
@@ -392,12 +410,39 @@ describe('storage', () => {
 
     describe('getJobHistory', () => {
       beforeEach(() => {
-        storage.saveHistory([
-          { jobId: 1, timestamp: '2024-01-03T00:00:00.000Z' },
-          { jobId: 1, timestamp: '2024-01-01T00:00:00.000Z' },
-          { jobId: 1, timestamp: '2024-01-02T00:00:00.000Z' },
-          { jobId: 2, timestamp: '2024-01-01T00:00:00.000Z' },
-        ]);
+        // Add history entries using addHistoryEntry (SQLite-based)
+        storage.addHistoryEntry({
+          jobId: 1,
+          jobName: 'job-1',
+          command: 'echo test',
+          status: 'success',
+          startTime: '2024-01-03T00:00:00.000Z',
+          timestamp: '2024-01-03T00:00:00.000Z',
+        });
+        storage.addHistoryEntry({
+          jobId: 1,
+          jobName: 'job-1',
+          command: 'echo test',
+          status: 'success',
+          startTime: '2024-01-01T00:00:00.000Z',
+          timestamp: '2024-01-01T00:00:00.000Z',
+        });
+        storage.addHistoryEntry({
+          jobId: 1,
+          jobName: 'job-1',
+          command: 'echo test',
+          status: 'success',
+          startTime: '2024-01-02T00:00:00.000Z',
+          timestamp: '2024-01-02T00:00:00.000Z',
+        });
+        storage.addHistoryEntry({
+          jobId: 2,
+          jobName: 'job-2',
+          command: 'echo test',
+          status: 'success',
+          startTime: '2024-01-01T00:00:00.000Z',
+          timestamp: '2024-01-01T00:00:00.000Z',
+        });
       });
 
       it('should return history for specific job', () => {
@@ -420,11 +465,31 @@ describe('storage', () => {
 
     describe('clearHistoryBefore', () => {
       beforeEach(() => {
-        storage.saveHistory([
-          { jobId: 1, timestamp: '2024-01-01T00:00:00.000Z' },
-          { jobId: 1, timestamp: '2024-01-15T00:00:00.000Z' },
-          { jobId: 1, timestamp: '2024-01-31T00:00:00.000Z' },
-        ]);
+        // Add history entries using addHistoryEntry (SQLite-based)
+        storage.addHistoryEntry({
+          jobId: 1,
+          jobName: 'job-1',
+          command: 'echo test',
+          status: 'success',
+          startTime: '2024-01-01T00:00:00.000Z',
+          timestamp: '2024-01-01T00:00:00.000Z',
+        });
+        storage.addHistoryEntry({
+          jobId: 1,
+          jobName: 'job-1',
+          command: 'echo test',
+          status: 'success',
+          startTime: '2024-01-15T00:00:00.000Z',
+          timestamp: '2024-01-15T00:00:00.000Z',
+        });
+        storage.addHistoryEntry({
+          jobId: 1,
+          jobName: 'job-1',
+          command: 'echo test',
+          status: 'success',
+          startTime: '2024-01-31T00:00:00.000Z',
+          timestamp: '2024-01-31T00:00:00.000Z',
+        });
       });
 
       it('should remove entries before specified date', () => {
@@ -437,10 +502,23 @@ describe('storage', () => {
 
     describe('clearAllHistory', () => {
       it('should remove all history entries', () => {
-        storage.saveHistory([
-          { jobId: 1, timestamp: '2024-01-01T00:00:00.000Z' },
-          { jobId: 2, timestamp: '2024-01-02T00:00:00.000Z' },
-        ]);
+        // Add history entries using addHistoryEntry (SQLite-based)
+        storage.addHistoryEntry({
+          jobId: 1,
+          jobName: 'job-1',
+          command: 'echo test',
+          status: 'success',
+          startTime: '2024-01-01T00:00:00.000Z',
+          timestamp: '2024-01-01T00:00:00.000Z',
+        });
+        storage.addHistoryEntry({
+          jobId: 2,
+          jobName: 'job-2',
+          command: 'echo test',
+          status: 'success',
+          startTime: '2024-01-02T00:00:00.000Z',
+          timestamp: '2024-01-02T00:00:00.000Z',
+        });
         
         const removed = storage.clearAllHistory();
         

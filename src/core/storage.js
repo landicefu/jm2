@@ -1,10 +1,18 @@
 /**
  * Storage utilities for jm2
  * Provides JSON file persistence for jobs, config, and history
+ * History is now stored in SQLite (via history-db.js) for better performance
  */
 
 import { readFileSync, writeFileSync, existsSync } from 'node:fs';
-import { ensureDataDir, getJobsFile, getConfigFile, getHistoryFile } from '../utils/paths.js';
+import { ensureDataDir, getJobsFile, getConfigFile } from '../utils/paths.js';
+import {
+  addHistoryEntry as dbAddHistoryEntry,
+  getHistory as dbGetHistory,
+  getJobHistory as dbGetJobHistory,
+  clearHistoryBefore as dbClearHistoryBefore,
+  clearAllHistory as dbClearAllHistory,
+} from './history-db.js';
 
 /**
  * Read a JSON file and parse its contents
@@ -223,38 +231,35 @@ export function getJobsByStatus(status) {
 
 /**
  * History storage operations
+ * Delegated to SQLite database via history-db.js
  */
 
 /**
  * Get execution history
+ * @param {object} options - Query options (limit, offset, jobId, status, since, until, order)
  * @returns {Array} Array of history entries
  */
-export function getHistory() {
-  return readJsonFile(getHistoryFile(), []);
+export function getHistory(options = {}) {
+  return dbGetHistory(options);
 }
 
 /**
- * Save execution history
+ * Save execution history (deprecated, no-op for SQLite)
  * @param {Array} history - Array of history entries
+ * @deprecated History is now automatically saved to SQLite
  */
 export function saveHistory(history) {
-  writeJsonFile(getHistoryFile(), history);
+  // No-op: History is now managed by SQLite
+  // This function is kept for API compatibility
 }
 
 /**
  * Add a history entry
  * @param {object} entry - History entry
- * @returns {object} Added history entry with timestamp
+ * @returns {object} Added history entry with timestamp and id
  */
 export function addHistoryEntry(entry) {
-  const history = getHistory();
-  const newEntry = {
-    ...entry,
-    timestamp: entry.timestamp || new Date().toISOString(),
-  };
-  history.push(newEntry);
-  saveHistory(history);
-  return newEntry;
+  return dbAddHistoryEntry(entry);
 }
 
 /**
@@ -264,11 +269,7 @@ export function addHistoryEntry(entry) {
  * @returns {Array} Array of history entries for the job
  */
 export function getJobHistory(jobId, limit = 10) {
-  const history = getHistory();
-  return history
-    .filter(entry => entry.jobId === jobId)
-    .sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp))
-    .slice(0, limit);
+  return dbGetJobHistory(jobId, limit);
 }
 
 /**
@@ -277,12 +278,7 @@ export function getJobHistory(jobId, limit = 10) {
  * @returns {number} Number of entries removed
  */
 export function clearHistoryBefore(beforeDate) {
-  const history = getHistory();
-  const cutoff = beforeDate.toISOString();
-  const filtered = history.filter(entry => entry.timestamp >= cutoff);
-  const removed = history.length - filtered.length;
-  saveHistory(filtered);
-  return removed;
+  return dbClearHistoryBefore(beforeDate);
 }
 
 /**
@@ -290,10 +286,7 @@ export function clearHistoryBefore(beforeDate) {
  * @returns {number} Number of entries removed
  */
 export function clearAllHistory() {
-  const history = getHistory();
-  const count = history.length;
-  saveHistory([]);
-  return count;
+  return dbClearAllHistory();
 }
 
 export default {

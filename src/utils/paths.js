@@ -87,11 +87,20 @@ export function getSocketPath() {
 }
 
 /**
- * Get the history.json file path for execution history
+ * Get the history.json file path for execution history (deprecated, use getHistoryDbFile)
  * @returns {string} The history file path
+ * @deprecated Use getHistoryDbFile() instead
  */
 export function getHistoryFile() {
   return join(getDataDir(), 'history.json');
+}
+
+/**
+ * Get the history.db file path for SQLite-based execution history
+ * @returns {string} The history database file path
+ */
+export function getHistoryDbFile() {
+  return join(getDataDir(), 'history.db');
 }
 
 /**
@@ -147,6 +156,7 @@ export default {
   getJobLogFile,
   getSocketPath,
   getHistoryFile,
+  getHistoryDbFile,
   ensureDataDir,
   ensureLogsDir,
   dataDirExists,
