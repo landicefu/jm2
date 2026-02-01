@@ -13,9 +13,28 @@ A simple yet powerful job scheduler for Node.js, combining the functionality of 
 
 ## Installation
 
+### Global Installation (Recommended)
+
 ```bash
 npm install -g jm2
 ```
+
+### Using npx (No Installation Required)
+
+You can use jm2 directly with npx without installing it globally:
+
+```bash
+# Start the daemon
+npx jm2 start
+
+# Add a job
+npx jm2 add "echo 'Hello World'" --cron "* * * * *" --name hello
+
+# List jobs
+npx jm2 list
+```
+
+**Note:** When using npx, the daemon will also run without global installation. All commands work the same way.
 
 ## Quick Start
 
