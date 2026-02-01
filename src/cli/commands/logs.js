@@ -60,24 +60,32 @@ export async function logsCommand(jobRef, options = {}) {
     const job = response.job;
     const logFile = getJobLogFile(job.name || `job-${job.id}`);
 
-    // Check if log file exists
-    if (!existsSync(logFile)) {
-      printInfo(`No log file found for job: ${job.name || job.id}`);
-      printInfo(`Log file would be at: ${logFile}`);
-      return 0;
-    }
-
     // Parse time filters
     const sinceDate = options.since ? parseTimeOption(options.since) : null;
     const untilDate = options.until ? parseTimeOption(options.until) : null;
 
     // Handle follow mode
     if (options.follow) {
+      // Check if log file exists, if not, wait for it to be created
+      if (!existsSync(logFile)) {
+        printInfo(`No log file found for job: ${job.name || job.id}`);
+        printInfo(`Log file would be at: ${logFile}`);
+        printInfo('Waiting for log file to be created...');
+        console.log();
+        await waitForLogFile(logFile);
+      }
       await followLogFile(logFile, {
         since: sinceDate,
         until: untilDate,
         timestamps: options.timestamps,
       });
+      return 0;
+    }
+
+    // Check if log file exists (non-follow mode)
+    if (!existsSync(logFile)) {
+      printInfo(`No log file found for job: ${job.name || job.id}`);
+      printInfo(`Log file would be at: ${logFile}`);
       return 0;
     }
 
@@ -255,6 +263,63 @@ function printLogLine(line, showTimestamps = true) {
       console.log(line);
     }
   }
+}
+
+/**
+ * Wait for a log file to be created
+ * @param {string} logFile - Path to log file
+ * @returns {Promise<void>}
+ */
+async function waitForLogFile(logFile) {
+  return new Promise((resolve, reject) => {
+    // Check if file already exists
+    if (existsSync(logFile)) {
+      resolve();
+      return;
+    }
+
+    // Watch the directory for the file to be created
+    const dir = logFile.substring(0, logFile.lastIndexOf('/'));
+    
+    // If directory doesn't exist, wait a bit and retry
+    if (!existsSync(dir)) {
+      // Poll every 500ms for up to 30 seconds
+      let attempts = 0;
+      const maxAttempts = 60;
+      const interval = setInterval(() => {
+        attempts++;
+        if (existsSync(logFile)) {
+          clearInterval(interval);
+          resolve();
+          return;
+        }
+        if (attempts >= maxAttempts) {
+          clearInterval(interval);
+          reject(new Error('Timeout waiting for log file to be created'));
+        }
+      }, 500);
+      return;
+    }
+
+    // Use fs.watch to monitor the directory
+    const watcher = watch(dir, (eventType, filename) => {
+      if (eventType === 'rename' && existsSync(logFile)) {
+        watcher.close();
+        resolve();
+      }
+    });
+
+    // Set a timeout (30 seconds)
+    const timeout = setTimeout(() => {
+      watcher.close();
+      reject(new Error('Timeout waiting for log file to be created'));
+    }, 30000);
+
+    // Clean up timeout when resolved
+    watcher.on('close', () => {
+      clearTimeout(timeout);
+    });
+  });
 }
 
 /**
