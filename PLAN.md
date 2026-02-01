@@ -102,6 +102,7 @@ jm2/
 | Phase 7: Logs and History | ✅ Complete | logs/history commands, log rotation |
 | Phase 8: Utility Commands | ⏳ Pending | flush, export, import commands |
 | Phase 9: Polish | ⏳ Pending | Error handling, edge cases, persistence |
+| Phase 11: SQLite History | ⏳ Pending | Migrate history from JSON to SQLite with config enforcement |
 
 ---
 
@@ -796,6 +797,61 @@ jm2 list  # Job should still be there and scheduled
 
 ---
 
+### Phase 11: SQLite History Migration ⏳ PENDING
+
+#### Step 11.1: SQLite History Storage
+**Goal:** Replace JSON file-based history with SQLite for better performance and querying capabilities.
+
+**Rationale:**
+- Current JSON-based history loads entire file into memory
+- No enforcement of `maxEntriesPerJob` and `retentionDays` config settings
+- SQLite provides efficient querying, indexing, and automatic cleanup
+
+**Tasks:**
+- [ ] Add `better-sqlite3` dependency to package.json
+- [ ] Create `src/core/history-db.js` - SQLite database module for history
+  - Initialize database with schema (job_id, job_name, command, status, exit_code, start_time, end_time, duration, error, timestamp)
+  - Create indexes on job_id and timestamp for efficient queries
+  - Implement `addHistoryEntry()` with automatic cleanup
+  - Implement `getHistory()` with filtering and pagination
+  - Implement `getJobHistory()` for specific job history
+  - Implement `clearHistoryBefore()` for date-based cleanup
+  - Implement `clearAllHistory()` for complete cleanup
+- [ ] Update `src/core/storage.js` to delegate history operations to SQLite module
+- [ ] Update `src/utils/paths.js` to add `getHistoryDbFile()` function
+- [ ] Remove or deprecate `getHistoryFile()` (JSON-based)
+
+**Config Enforcement:**
+- On `addHistoryEntry()`:
+  - After inserting, delete oldest entries if count for job exceeds `history.maxEntriesPerJob`
+  - Delete entries older than `history.retentionDays` from all jobs
+- These checks run automatically on every history insertion
+
+**Test:**
+```bash
+# Install new dependency
+npm install
+
+# Run unit tests for history DB
+npm run test:run -- --reporter=dot tests/unit/history-db.test.js
+
+# Manual test - add jobs and verify history is stored
+jm2 start
+jm2 add "echo test1" --name test-job --cron "* * * * *"
+sleep 65  # Wait for job to run
+jm2 history test-job  # Should show entry
+
+# Verify SQLite file exists
+ls -la ~/.jm2/history.db
+```
+
+**Notes:**
+- No migration of old JSON history data needed - start fresh with SQLite
+- Old `history.json` can be ignored or deleted on first SQLite access
+- Keep the same public API in `storage.js` to minimize changes to other modules
+
+---
+
 ## Dependencies
 
 | Package | Version | Purpose |
@@ -806,6 +862,7 @@ jm2 list  # Job should still be there and scheduled
 | chalk | ^5.6.2 | Terminal colors |
 | cli-table3 | ^0.6.5 | Table output |
 | ora | ^8.0.0 | Spinners |
+| better-sqlite3 | ^11.0.0 | SQLite database for history storage |
 
 ### Dev Dependencies
 
