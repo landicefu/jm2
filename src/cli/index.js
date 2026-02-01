@@ -63,7 +63,11 @@ export async function runCli() {
   program
     .name('jm2')
     .description('JM2 (Job Manager 2) - A simple yet powerful job scheduler')
-    .version(getVersion(), '-v, --version', 'Display version number');
+    .version(getVersion(), '-v, --version', 'Display version number')
+    .showHelpAfterError()
+    .action(() => {
+      program.help();
+    });
 
   // Daemon management commands
   program
