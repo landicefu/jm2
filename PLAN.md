@@ -102,7 +102,7 @@ jm2/
 | Phase 7: Logs and History | ✅ Complete | logs/history commands, log rotation |
 | Phase 8: Utility Commands | ⏳ Pending | flush, export, import commands |
 | Phase 9: Polish | ⏳ Pending | Error handling, edge cases, persistence |
-| Phase 11: SQLite History | ⏳ Pending | Migrate history from JSON to SQLite with config enforcement |
+| Phase 11: SQLite History | ✅ Complete | Migrate history from JSON to SQLite with config enforcement |
 
 ---
 
@@ -797,7 +797,7 @@ jm2 list  # Job should still be there and scheduled
 
 ---
 
-### Phase 11: SQLite History Migration ⏳ PENDING
+### Phase 11: SQLite History Migration ✅ COMPLETE
 
 #### Step 11.1: SQLite History Storage
 **Goal:** Replace JSON file-based history with SQLite for better performance and querying capabilities.
@@ -808,8 +808,8 @@ jm2 list  # Job should still be there and scheduled
 - SQLite provides efficient querying, indexing, and automatic cleanup
 
 **Tasks:**
-- [ ] Add `better-sqlite3` dependency to package.json
-- [ ] Create `src/core/history-db.js` - SQLite database module for history
+- [x] Add `better-sqlite3` dependency to package.json
+- [x] Create `src/core/history-db.js` - SQLite database module for history
   - Initialize database with schema (job_id, job_name, command, status, exit_code, start_time, end_time, duration, error, timestamp)
   - Create indexes on job_id and timestamp for efficient queries
   - Implement `addHistoryEntry()` with automatic cleanup
@@ -817,15 +817,15 @@ jm2 list  # Job should still be there and scheduled
   - Implement `getJobHistory()` for specific job history
   - Implement `clearHistoryBefore()` for date-based cleanup
   - Implement `clearAllHistory()` for complete cleanup
-- [ ] Update `src/core/storage.js` to delegate history operations to SQLite module
-- [ ] Update `src/utils/paths.js` to add `getHistoryDbFile()` function
-- [ ] Remove or deprecate `getHistoryFile()` (JSON-based)
+- [x] Update `src/core/storage.js` to delegate history operations to SQLite module
+- [x] Update `src/utils/paths.js` to add `getHistoryDbFile()` function
+- [x] Remove or deprecate `getHistoryFile()` (JSON-based)
 
 **Config Enforcement:**
-- On `addHistoryEntry()`:
+- [x] On `addHistoryEntry()`:
   - After inserting, delete oldest entries if count for job exceeds `history.maxEntriesPerJob`
-  - Delete entries older than `history.retentionDays` from all jobs
-- These checks run automatically on every history insertion
+  - Delete entries older than `history.retentionDays` from all jobs (based on created_at, not timestamp)
+- [x] These checks run automatically on every history insertion
 
 **Test:**
 ```bash
@@ -834,6 +834,9 @@ npm install
 
 # Run unit tests for history DB
 npm run test:run -- --reporter=dot tests/unit/history-db.test.js
+
+# Run all tests
+npm run test:run -- --reporter=dot
 
 # Manual test - add jobs and verify history is stored
 jm2 start
@@ -849,6 +852,8 @@ ls -la ~/.jm2/history.db
 - No migration of old JSON history data needed - start fresh with SQLite
 - Old `history.json` can be ignored or deleted on first SQLite access
 - Keep the same public API in `storage.js` to minimize changes to other modules
+- Uses WAL mode for better concurrent read/write performance
+- 5-second busy timeout for handling concurrent access
 
 ---
 
