@@ -1,6 +1,6 @@
 /**
- * jm2 stop command
- * Stops the jm2 daemon process
+ * JM2 stop command
+ * Stops the JM2 daemon process
  */
 
 import { stopDaemon, isDaemonRunning, getDaemonStatus } from '../../daemon/index.js';

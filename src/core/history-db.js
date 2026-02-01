@@ -1,5 +1,5 @@
 /**
- * SQLite-based history storage for jm2
+ * SQLite-based history storage for JM2
  * Provides efficient querying, indexing, and automatic cleanup
  * Handles concurrent access through SQLite's file locking mechanism
  */

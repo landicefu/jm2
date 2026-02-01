@@ -1,5 +1,5 @@
 /**
- * jm2 logs command
+ * JM2 logs command
  * View job execution logs with tail, follow, and time filtering
  */
 

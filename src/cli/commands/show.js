@@ -1,5 +1,5 @@
 /**
- * jm2 show command
+ * JM2 show command
  * Shows detailed information about a job
  */
 

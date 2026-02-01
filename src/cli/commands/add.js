@@ -1,5 +1,5 @@
 /**
- * jm2 add command
+ * JM2 add command
  * Adds a new job to the scheduler
  */
 
@@ -10,11 +10,11 @@ import { isDaemonRunning } from '../../daemon/index.js';
 import { parseDateTime, parseRunIn } from '../../utils/datetime.js';
 
 /**
- * Print common examples of jm2 add command
+ * Print common examples of JM2 add command
  */
 function printExamples() {
   console.log(`
-Common examples of jm2 add:
+Common examples of JM2 add:
 
   # Run a command once at a specific time
   jm2 add "backup.sh" --at "today 14:30"

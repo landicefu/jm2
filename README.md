@@ -1,4 +1,4 @@
-# jm2 - Job Manager 2
+# JM2 - Job Manager 2
 
 A simple yet powerful job scheduler for Node.js, combining the functionality of `cron` (periodic tasks) and `at` (one-time tasks). Designed to be as easy to use as pm2.
 
@@ -41,7 +41,7 @@ jm2 stop
 ### Daemon Management
 
 #### `jm2 start`
-Start the jm2 daemon process.
+Start the JM2 daemon process.
 
 ```bash
 jm2 start
@@ -51,14 +51,14 @@ Options:
 - `--foreground, -f` - Run in foreground (don't daemonize)
 
 #### `jm2 stop`
-Stop the jm2 daemon process.
+Stop the JM2 daemon process.
 
 ```bash
 jm2 stop
 ```
 
 #### `jm2 restart`
-Restart the jm2 daemon process.
+Restart the JM2 daemon process.
 
 ```bash
 jm2 restart
@@ -73,7 +73,7 @@ jm2 status
 
 Output example:
 ```
-jm2 Daemon Status
+JM2 Daemon Status
 ─────────────────────────────────
 Status:     Running
 PID:        12345
@@ -492,7 +492,7 @@ For `--in`, `--timeout` options:
 
 ## Configuration
 
-jm2 stores its data in `~/.jm2/`:
+JM2 stores its data in `~/.jm2/`:
 
 ```
 ~/.jm2/
@@ -579,4 +579,4 @@ jm2 add "notify-send 'Meeting in 5 minutes!'" \
 
 ## License
 
-jm2 is made available under the terms of the GNU Affero General Public License 3.0 (AGPL 3.0). For other licenses contact [me](mailto:landicefu@gmail.com).
+JM2 is made available under the terms of the GNU Affero General Public License 3.0 (AGPL 3.0). For other licenses contact [me](mailto:landicefu@gmail.com).

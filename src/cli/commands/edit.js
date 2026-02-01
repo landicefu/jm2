@@ -1,5 +1,5 @@
 /**
- * jm2 edit command
+ * JM2 edit command
  * Edit an existing job's properties
  */
 

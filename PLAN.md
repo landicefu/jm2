@@ -1,6 +1,6 @@
-# jm2 Implementation Plan
+# JM2 Implementation Plan
 
-This document outlines the step-by-step implementation plan for jm2. Each step is designed to be testable independently.
+This document outlines the step-by-step implementation plan for JM2 (Job Manager 2). Each step is designed to be testable independently.
 
 ## Architecture Overview
 

@@ -1,5 +1,5 @@
 /**
- * Duration parsing utilities for jm2
+ * Duration parsing utilities for JM2
  * Parses human-readable duration strings like "30s", "5m", "2h", "1d", "1w", "1h30m"
  */
 

@@ -1,5 +1,5 @@
 /**
- * Configuration management for jm2
+ * Configuration management for JM2
  * Handles daemon and application configuration
  */
 

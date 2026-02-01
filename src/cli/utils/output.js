@@ -1,5 +1,5 @@
 /**
- * Output formatting utilities for CLI
+ * Output formatting utilities for JM2 CLI
  * Provides table formatting, colors, and other output helpers
  */
 

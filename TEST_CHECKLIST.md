@@ -1,4 +1,4 @@
-# jm2 Test Checklist
+# JM2 Test Checklist
 
 Complete verification checklist for all commands and options. Each item should be tested before release.
 

@@ -1,5 +1,5 @@
 /**
- * jm2 import command
+ * JM2 import command
  * Imports job configurations from a JSON file
  */
 

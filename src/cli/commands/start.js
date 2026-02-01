@@ -1,6 +1,6 @@
 /**
- * jm2 start command
- * Starts the jm2 daemon process
+ * JM2 start command
+ * Starts the JM2 daemon process
  */
 
 import { startDaemon, isDaemonRunning, getDaemonStatus } from '../../daemon/index.js';

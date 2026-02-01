@@ -1,5 +1,5 @@
 /**
- * Path utilities for jm2
+ * Path utilities for JM2
  * Provides consistent paths for data directory, config files, logs, etc.
  */
 

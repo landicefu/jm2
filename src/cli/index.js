@@ -1,5 +1,5 @@
 /**
- * jm2 CLI
+ * JM2 CLI
  * Command-line interface using Commander.js
  */
 
@@ -62,13 +62,13 @@ export async function runCli() {
 
   program
     .name('jm2')
-    .description('Job Manager 2 - A simple yet powerful job scheduler')
+    .description('JM2 (Job Manager 2) - A simple yet powerful job scheduler')
     .version(getVersion(), '-v, --version', 'Display version number');
 
   // Daemon management commands
   program
     .command('start')
-    .description('Start the jm2 daemon')
+    .description('Start the JM2 daemon')
     .option('-f, --foreground', 'Run in foreground (don\'t daemonize)', false)
     .action(async (options) => {
       const exitCode = await startCommand(options);
@@ -77,7 +77,7 @@ export async function runCli() {
 
   program
     .command('stop')
-    .description('Stop the jm2 daemon')
+    .description('Stop the JM2 daemon')
     .action(async () => {
       const exitCode = await stopCommand();
       process.exit(exitCode);
@@ -85,7 +85,7 @@ export async function runCli() {
 
   program
     .command('restart')
-    .description('Restart the jm2 daemon')
+    .description('Restart the JM2 daemon')
     .action(async () => {
       const exitCode = await restartCommand();
       process.exit(exitCode);

@@ -1,5 +1,5 @@
 /**
- * Logger utilities for jm2
+ * Logger utilities for JM2
  * Provides consistent logging for daemon and job execution
  */
 
@@ -229,7 +229,7 @@ export function formatSize(bytes) {
  * @returns {object} Logger instance
  */
 export function createLogger(options = {}) {
-  const { name = 'jm2', file = null, console: logToConsole = false, rotation = null } = options;
+  const { name = 'JM2', file = null, console: logToConsole = false, rotation = null } = options;
 
   const log = (level, message, meta = {}) => {
     if (!shouldLog(level)) {

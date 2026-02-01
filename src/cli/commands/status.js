@@ -1,5 +1,5 @@
 /**
- * jm2 status command
+ * JM2 status command
  * Shows the daemon status and statistics
  */
 
@@ -27,7 +27,7 @@ export async function statusCommand(_options = {}) {
   const pausedJobs = jobs.filter(j => j.status === 'paused').length;
 
   // Print header
-  printHeader('jm2 Daemon Status');
+  printHeader('JM2 Daemon Status');
 
   // Create status table
   const table = createStatusTable();

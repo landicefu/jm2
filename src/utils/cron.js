@@ -1,5 +1,5 @@
 /**
- * Cron expression utilities for jm2
+ * Cron expression utilities for JM2
  * Uses cron-parser library for parsing and calculating next run times
  */
 

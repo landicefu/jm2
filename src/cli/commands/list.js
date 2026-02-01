@@ -1,5 +1,5 @@
 /**
- * jm2 list command
+ * JM2 list command
  * Lists all jobs with optional filtering
  */
 

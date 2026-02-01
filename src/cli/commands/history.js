@@ -1,5 +1,5 @@
 /**
- * jm2 history command
+ * JM2 history command
  * Show execution history for jobs
  */
 

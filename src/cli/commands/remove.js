@@ -1,5 +1,5 @@
 /**
- * jm2 remove command
+ * JM2 remove command
  * Removes one or more jobs from the scheduler
  */
 

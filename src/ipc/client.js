@@ -1,5 +1,5 @@
 /**
- * IPC client for jm2 CLI
+ * IPC client for JM2 CLI
  */
 
 import { createConnection } from 'node:net';

@@ -1,5 +1,5 @@
 /**
- * jm2 run command
+ * JM2 run command
  * Manually execute a job immediately
  */
 

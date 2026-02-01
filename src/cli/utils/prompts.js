@@ -1,5 +1,5 @@
 /**
- * Prompt utilities for CLI
+ * Prompt utilities for JM2 CLI
  * Provides confirmation prompts and user interaction helpers
  */
 

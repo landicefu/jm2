@@ -1,5 +1,5 @@
 /**
- * jm2 export command
+ * JM2 export command
  * Exports job configurations to a JSON file
  */
 

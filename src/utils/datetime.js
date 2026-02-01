@@ -1,5 +1,5 @@
 /**
- * Datetime parsing utilities for jm2
+ * Datetime parsing utilities for JM2
  * Handles parsing --at datetime strings and --in duration to datetime conversion
  */
 

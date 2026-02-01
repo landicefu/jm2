@@ -1,5 +1,5 @@
 /**
- * Config command for jm2
+ * Config command for JM2
  * View and modify configuration settings
  */
 

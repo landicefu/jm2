@@ -1,5 +1,5 @@
 /**
- * jm2 pause command
+ * JM2 pause command
  * Pauses one or more jobs (prevents them from running)
  */
 

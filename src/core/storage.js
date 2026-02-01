@@ -1,5 +1,5 @@
 /**
- * Storage utilities for jm2
+ * Storage utilities for JM2
  * Provides JSON file persistence for jobs, config, and history
  * History is now stored in SQLite (via history-db.js) for better performance
  */

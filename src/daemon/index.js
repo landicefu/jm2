@@ -1,5 +1,5 @@
 /**
- * Daemon entry point for jm2
+ * Daemon entry point for JM2
  * Handles daemonization, PID management, and graceful shutdown
  */
 

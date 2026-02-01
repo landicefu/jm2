@@ -1,5 +1,5 @@
 /**
- * jm2 resume command
+ * JM2 resume command
  * Resumes one or more paused jobs
  */
 

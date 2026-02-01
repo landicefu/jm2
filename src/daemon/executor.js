@@ -1,5 +1,5 @@
 /**
- * Command executor for jm2 daemon
+ * Command executor for JM2 daemon
  * Handles job execution with process management, timeout, and logging
  */
 

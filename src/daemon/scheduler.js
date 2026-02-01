@@ -1,5 +1,5 @@
 /**
- * Job scheduler for jm2 daemon
+ * Job scheduler for JM2 daemon
  * Manages cron jobs and one-time job scheduling
  */
 

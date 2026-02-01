@@ -1,5 +1,5 @@
 /**
- * IPC server for jm2 daemon
+ * IPC server for JM2 daemon
  */
 
 import { createServer } from 'node:net';

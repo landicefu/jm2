@@ -1,5 +1,5 @@
 /**
- * jm2 flush command
+ * JM2 flush command
  * Cleans up completed one-time jobs, old logs, and old history entries
  */
 

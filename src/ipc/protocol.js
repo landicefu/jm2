@@ -1,5 +1,5 @@
 /**
- * IPC protocol definitions for jm2
+ * IPC protocol definitions for JM2
  */
 
 export const MessageType = {

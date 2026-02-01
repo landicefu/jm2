@@ -1,5 +1,5 @@
 /**
- * Job model and validation for jm2
+ * Job model and validation for JM2
  * Defines job structure and provides validation utilities
  */
 
