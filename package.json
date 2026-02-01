@@ -9,7 +9,7 @@
     "./package.json": "./package.json"
   },
   "bin": {
-    "jm2": "./bin/jm2.js"
+    "jm2": "bin/jm2.js"
   },
   "files": [
     "bin/",
