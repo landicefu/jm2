@@ -2,7 +2,7 @@
 
 /**
  * jm2 CLI Entry Point
- * 
+ *
  * Usage:
  *   jm2 start              Start the daemon
  *   jm2 stop               Stop the daemon
@@ -17,6 +17,8 @@
  *   jm2 run <id|name>      Run a job manually
  *   jm2 logs <id|name>     Show job logs
  *   jm2 history <id|name>  Show job history
+ *   jm2 install            Register JM2 to start on boot
+ *   jm2 uninstall          Unregister JM2 from system startup
  */
 
 import { runCli } from '../src/cli/index.js';

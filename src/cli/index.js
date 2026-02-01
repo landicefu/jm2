@@ -26,6 +26,8 @@ import { historyCommand } from './commands/history.js';
 import { flushCommand } from './commands/flush.js';
 import { exportCommand } from './commands/export.js';
 import { importCommand } from './commands/import.js';
+import { installCommand } from './commands/install.js';
+import { uninstallCommand } from './commands/uninstall.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
@@ -268,6 +270,29 @@ export async function runCli() {
     .option('-f, --force', 'Skip confirmation prompt', false)
     .action(async (file, options) => {
       const exitCode = await importCommand(file, options);
+      process.exit(exitCode);
+    });
+
+  // Install command
+  program
+    .command('install')
+    .description('Register JM2 daemon to start on system boot')
+    .option('--user', 'Install for current user only (default)', false)
+    .option('--system', 'Install system-wide (requires admin/root)', false)
+    .action(async (options) => {
+      const exitCode = await installCommand(options);
+      process.exit(exitCode);
+    });
+
+  // Uninstall command
+  program
+    .command('uninstall')
+    .description('Unregister JM2 daemon from system startup')
+    .option('--user', 'Uninstall user-level registration (default)', false)
+    .option('--system', 'Uninstall system-wide registration (requires admin/root)', false)
+    .option('-f, --force', 'Skip confirmation prompt', false)
+    .action(async (options) => {
+      const exitCode = await uninstallCommand(options);
       process.exit(exitCode);
     });
 

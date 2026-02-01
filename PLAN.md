@@ -100,10 +100,10 @@ jm2/
 | Phase 5: Job Execution | ✅ Complete | Command executor, retry logic |
 | Phase 6: Job Management | ✅ Complete | add/list/show/remove/pause/resume/run/edit commands |
 | Phase 7: Logs and History | ✅ Complete | logs/history commands, log rotation |
-| Phase 8: Utility Commands | ⏳ Pending | flush, export, import commands |
+| Phase 8: Utility Commands | ✅ Complete | flush, export, import commands |
 | Phase 9: Polish | ⏳ Pending | Error handling, edge cases, persistence |
 | Phase 11: SQLite History | ✅ Complete | Migrate history from JSON to SQLite with config enforcement |
-| Phase 12: System Service | ⏳ Pending | install/uninstall commands for system startup registration |
+| Phase 12: System Service | ✅ Complete | install/uninstall commands for system startup registration |
 
 ---
 
@@ -858,7 +858,7 @@ ls -la ~/.jm2/history.db
 
 ---
 
-### Phase 12: System Service Install/Uninstall ⏳ PENDING
+### Phase 12: System Service Install/Uninstall ✅ COMPLETE
 
 #### Step 12.1: Research Service Registration Mechanisms
 **Goal:** Research how to register `jm2 start` to run at system boot on Mac, Linux, and Windows.
@@ -868,12 +868,12 @@ ls -la ~/.jm2/history.db
 - `coreybutler/node-mac` - macOS daemon implementation
 
 **Tasks:**
-- [ ] Clone reference repos to temporary folders for readonly analysis
-- [ ] Analyze Windows service registration mechanism
-- [ ] Analyze Linux systemd service registration
-- [ ] Analyze macOS launchd plist registration
-- [ ] Document the key implementation details for each platform
-- [ ] Delete temporary cloned repositories after research
+- [x] Clone reference repos to temporary folders for readonly analysis
+- [x] Analyze Windows service registration mechanism
+- [x] Analyze Linux systemd service registration
+- [x] Analyze macOS launchd plist registration
+- [x] Document the key implementation details for each platform
+- [x] Delete temporary cloned repositories after research
 
 **Platform-Specific Research:**
 
@@ -900,11 +900,11 @@ ls -la ~/.jm2/history.db
 **Goal:** Design the `jm2 install` and `jm2 uninstall` CLI commands.
 
 **Tasks:**
-- [ ] Design CLI interface: `jm2 install [--user|--system]` and `jm2 uninstall [--user|--system]`
-- [ ] Determine default behavior (user-level vs system-level)
-- [ ] Design privilege escalation handling (sudo prompt on Unix, UAC on Windows)
-- [ ] Define error handling for permission denied scenarios
-- [ ] Document the expected user flow
+- [x] Design CLI interface: `jm2 install [--user|--system]` and `jm2 uninstall [--user|--system]`
+- [x] Determine default behavior (user-level vs system-level)
+- [x] Design privilege escalation handling (sudo prompt on Unix, UAC on Windows)
+- [x] Define error handling for permission denied scenarios
+- [x] Document the expected user flow
 
 **Considerations:**
 - `--user` flag: Install for current user only (no root required on Unix)
@@ -916,11 +916,11 @@ ls -la ~/.jm2/history.db
 **Goal:** Implement Windows service registration.
 
 **Tasks:**
-- [ ] Create service wrapper script/executable that runs `jm2 start`
-- [ ] Implement service installation using `sc.exe` or native Windows APIs
-- [ ] Implement service configuration (auto-start on boot)
-- [ ] Implement service uninstallation
-- [ ] Handle UAC elevation when needed
+- [x] Create service wrapper script/executable that runs `jm2 start`
+- [x] Implement service installation using `sc.exe` or native Windows APIs
+- [x] Implement service configuration (auto-start on boot)
+- [x] Implement service uninstallation
+- [x] Handle UAC elevation when needed
 - [ ] Test on Windows
 
 **Test:**
@@ -941,12 +941,12 @@ jm2 uninstall --system
 **Goal:** Implement Linux systemd service registration.
 
 **Tasks:**
-- [ ] Create systemd service template file
-- [ ] Implement service file generation with correct paths
-- [ ] Implement `systemctl` command execution with sudo
-- [ ] Implement install command (copy service file, enable, start)
-- [ ] Implement uninstall command (stop, disable, remove service file)
-- [ ] Handle sudo password prompt gracefully
+- [x] Create systemd service template file
+- [x] Implement service file generation with correct paths
+- [x] Implement `systemctl` command execution with sudo
+- [x] Implement install command (copy service file, enable, start)
+- [x] Implement uninstall command (stop, disable, remove service file)
+- [x] Handle sudo password prompt gracefully
 - [ ] Test on Linux distributions with systemd
 
 **Test:**
@@ -974,12 +974,12 @@ jm2 uninstall --system
 **Goal:** Implement macOS launchd plist registration.
 
 **Tasks:**
-- [ ] Create launchd plist template
-- [ ] Implement plist file generation with correct paths
-- [ ] Implement `launchctl` command execution
-- [ ] Implement install command (copy plist, load, start)
-- [ ] Implement uninstall command (unload, remove plist)
-- [ ] Handle sudo for system-level installation
+- [x] Create launchd plist template
+- [x] Implement plist file generation with correct paths
+- [x] Implement `launchctl` command execution
+- [x] Implement install command (copy plist, load, start)
+- [x] Implement uninstall command (unload, remove plist)
+- [x] Handle sudo for system-level installation
 - [ ] Test on macOS
 
 **Test:**
@@ -1005,11 +1005,11 @@ jm2 uninstall --system
 **Goal:** Implement cross-platform privilege elevation for system-level installation.
 
 **Tasks:**
-- [ ] Detect current privilege level (admin/root vs regular user)
-- [ ] Implement Unix sudo command wrapper with password prompt
-- [ ] Implement Windows UAC elevation detection
-- [ ] Provide clear error messages when elevation fails
-- [ ] Allow pre-authenticated sudo (reuse existing sudo session)
+- [x] Detect current privilege level (admin/root vs regular user)
+- [x] Implement Unix sudo command wrapper with password prompt
+- [x] Implement Windows UAC elevation detection
+- [x] Provide clear error messages when elevation fails
+- [x] Allow pre-authenticated sudo (reuse existing sudo session)
 
 **Unix (Linux/macOS) Approach:**
 - Check if running as root: `process.getuid() === 0`
@@ -1026,12 +1026,12 @@ jm2 uninstall --system
 **Goal:** Create `jm2 install` and `jm2 uninstall` CLI commands.
 
 **Tasks:**
-- [ ] Create `src/cli/commands/install.js` - Install command implementation
-- [ ] Create `src/cli/commands/uninstall.js` - Uninstall command implementation
-- [ ] Add commands to CLI in `src/cli/index.js`
-- [ ] Implement platform detection (win32, linux, darwin)
-- [ ] Implement platform-specific install/uninstall logic
-- [ ] Add progress feedback and error handling
+- [x] Create `src/cli/commands/install.js` - Install command implementation
+- [x] Create `src/cli/commands/uninstall.js` - Uninstall command implementation
+- [x] Add commands to CLI in `src/cli/index.js`
+- [x] Implement platform detection (win32, linux, darwin)
+- [x] Implement platform-specific install/uninstall logic
+- [x] Add progress feedback and error handling
 
 **CLI Interface:**
 ```
@@ -1059,16 +1059,16 @@ jm2 uninstall [options]
 - [ ] Test on Windows (user and system installation)
 - [ ] Test on Linux with systemd (user and system installation)
 - [ ] Test on macOS (user and system installation)
-- [ ] Test privilege escalation scenarios
-- [ ] Update README.md with install/uninstall documentation
-- [ ] Add troubleshooting section for common permission issues
+- [x] Test privilege escalation scenarios
+- [x] Update README.md with install/uninstall documentation
+- [x] Add troubleshooting section for common permission issues
 
 **Test Checklist:**
 - [ ] Install --user works without sudo/admin
 - [ ] Install --system prompts for elevation
 - [ ] Daemon starts automatically after reboot
 - [ ] Uninstall removes all traces
-- [ ] Error messages are clear when permissions are insufficient
+- [x] Error messages are clear when permissions are insufficient
 
 ---
 
