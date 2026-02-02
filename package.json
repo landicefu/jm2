@@ -1,6 +1,6 @@
 {
   "name": "jm2",
-  "version": "0.1.3",
+  "version": "0.1.4",
   "description": "Job Manager 2 - A simple yet powerful job scheduler combining cron and at functionality",
   "type": "module",
   "main": "src/cli/index.js",
