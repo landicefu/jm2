@@ -16,7 +16,7 @@ const DATA_DIR_NAME = '.jm2';
  * Get the runtime directory for sockets
  * Uses platform-specific standard locations:
  * - Linux: /run/user/<uid>/jm2/ (XDG standard)
- * - macOS: ~/Library/Caches/jm2/
+ * - macOS: ~/.jm2/ (Caches directory gets cleaned up by system)
  * - Others: ~/.jm2/
  * @returns {string} The runtime directory path
  */
@@ -33,12 +33,8 @@ function getRuntimeDir() {
     return join(xdgRuntimeDir, 'jm2');
   }
 
-  if (process.platform === 'darwin') {
-    // macOS standard - use Library/Caches for runtime files
-    return join(homedir(), 'Library', 'Caches', 'jm2');
-  }
-
-  // Fallback to data directory for other platforms
+  // For macOS and other platforms, use data directory
+  // Note: Library/Caches gets cleaned up by macOS, causing socket files to disappear
   return getDataDir();
 }
 
