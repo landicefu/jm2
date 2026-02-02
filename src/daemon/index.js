@@ -763,6 +763,8 @@ function handleFlush(message) {
       result.jobsRemoved = initialCount - filteredJobs.length;
       if (result.jobsRemoved > 0) {
         saveJobs(filteredJobs);
+        // Reload jobs into scheduler to sync in-memory state with storage
+        scheduler.loadJobs();
         logger?.info(`Flushed ${result.jobsRemoved} completed one-time jobs`);
       }
     }
