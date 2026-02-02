@@ -17,12 +17,18 @@ export function startIpcServer(options = {}) {
   const { onMessage } = options;
   const socketPath = getSocketPath();
 
-  if (process.platform !== 'win32' && existsSync(socketPath)) {
-    unlinkSync(socketPath);
-  }
-
+  // Ensure directories exist first
   ensureDataDir();
   ensureRuntimeDir();
+
+  // Clean up stale socket file
+  if (process.platform !== 'win32' && existsSync(socketPath)) {
+    try {
+      unlinkSync(socketPath);
+    } catch (error) {
+      throw new Error(`Failed to remove stale socket file: ${error.message}`);
+    }
+  }
 
   const server = createServer(socket => {
     let buffer = '';
@@ -72,7 +78,21 @@ export function startIpcServer(options = {}) {
     });
   });
 
+  // Add error handler for the server
+  server.on('error', (error) => {
+    throw new Error(`IPC server error: ${error.message}`);
+  });
+
   server.listen(socketPath);
+  
+  // Verify socket was created
+  server.on('listening', () => {
+    if (process.platform !== 'win32' && !existsSync(socketPath)) {
+      server.close();
+      throw new Error(`Socket file was not created at ${socketPath}`);
+    }
+  });
+
   return server;
 }
 
@@ -85,6 +105,18 @@ export function stopIpcServer(server) {
     return;
   }
   server.close();
+  
+  // Clean up socket file on Unix systems
+  if (process.platform !== 'win32') {
+    const socketPath = getSocketPath();
+    try {
+      if (existsSync(socketPath)) {
+        unlinkSync(socketPath);
+      }
+    } catch (error) {
+      // Ignore errors during cleanup
+    }
+  }
 }
 
 export default {
