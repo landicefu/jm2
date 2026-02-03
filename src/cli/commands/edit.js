@@ -47,9 +47,10 @@ export async function editCommand(jobRef, options = {}) {
     options.tagRemove !== undefined;
 
   // Check for mutually exclusive tag options
-  const hasTagSet = options.tag !== undefined;
-  const hasTagAppend = options.tagAppend !== undefined;
-  const hasTagRemove = options.tagRemove !== undefined;
+  // options.tag has a default of [], so check if it's non-empty
+  const hasTagSet = options.tag !== undefined && options.tag.length > 0;
+  const hasTagAppend = options.tagAppend !== undefined && options.tagAppend.length > 0;
+  const hasTagRemove = options.tagRemove !== undefined && options.tagRemove.length > 0;
 
   if (hasTagSet && (hasTagAppend || hasTagRemove)) {
     printError('Cannot use --tag with --tag-append or --tag-remove. Use --tag to replace all tags, or --tag-append/--tag-remove to modify existing tags.');
