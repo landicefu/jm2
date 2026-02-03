@@ -296,8 +296,14 @@ jm2 edit nightly-backup --cron "0 3 * * *"
 # Change command
 jm2 edit nightly-backup --command "npm run full-backup"
 
-# Add/remove tags
-jm2 edit nightly-backup --tag important --untag old
+# Replace all tags (removes existing, sets new)
+jm2 edit nightly-backup --tag production --tag critical
+
+# Append tags without removing existing ones
+jm2 edit nightly-backup --tag-append new-tag
+
+# Remove specific tags
+jm2 edit nightly-backup --tag-remove old-tag
 
 # Change working directory
 jm2 edit nightly-backup --cwd /new/path
@@ -308,13 +314,62 @@ Options:
 - `--at, -a <datetime>` - Convert to one-time job at datetime
 - `--command <cmd>` - New command to execute
 - `--name, -n <name>` - Rename the job
-- `--tag, -t <tag>` - Add tag (can be used multiple times)
-- `--untag <tag>` - Remove tag (can be used multiple times)
+- `--tag, -t <tag>` - Set tags (replaces all existing tags, can be used multiple times)
+- `--tag-append <tag>` - Append tags to existing tags (can be used multiple times)
+- `--tag-remove <tag>` - Remove specific tags (can be used multiple times)
 - `--cwd <path>` - New working directory
 - `--env, -e <KEY=value>` - Set/update environment variable
-- `--unenv <KEY>` - Remove environment variable
 - `--timeout <duration>` - New timeout value
 - `--retry <count>` - New retry count
+
+#### `jm2 tags <subcommand>`
+Manage job tags in bulk.
+
+```bash
+# List all tags with job counts
+jm2 tags list
+
+# List tags with associated jobs (verbose)
+jm2 tags list -v
+
+# Add tag to multiple jobs
+jm2 tags add production 1 2 3
+jm2 tags add staging job-name job2-name
+
+# Remove tag from specific jobs
+jm2 tags rm staging 1 2
+
+# Remove tag from all jobs
+jm2 tags rm old-tag --all
+
+# Clear all tags from specific jobs
+jm2 tags clear 1 2
+
+# Clear all tags from all jobs (requires confirmation)
+jm2 tags clear --all --force
+
+# Rename a tag across all jobs
+jm2 tags rename staging production
+
+# Show jobs grouped by tag (includes untagged group)
+jm2 tags jobs
+
+# Show jobs with specific tag
+jm2 tags jobs production
+```
+
+Subcommands:
+- `list` - List all tags with job counts
+- `add <tag> <job-id-or-name>...` - Add tag to specified jobs
+- `rm <tag> [job-id-or-name]...` - Remove tag from jobs (use `--all` for all jobs)
+- `clear [job-id-or-name]...` - Clear all tags from jobs (use `--all --force` for all jobs)
+- `rename <old-tag> <new-tag>` - Rename a tag across all jobs
+- `jobs [tag-name]` - List jobs grouped by tag
+
+Options:
+- `-v, --verbose` - Show verbose output (list associated jobs)
+- `-a, --all` - Apply to all jobs (for rm and clear commands)
+- `-f, --force` - Skip confirmation for destructive operations
 
 ### Logs and History
 
