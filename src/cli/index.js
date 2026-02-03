@@ -28,6 +28,7 @@ import { exportCommand } from './commands/export.js';
 import { importCommand } from './commands/import.js';
 import { installCommand } from './commands/install.js';
 import { uninstallCommand } from './commands/uninstall.js';
+import { tagsCommand } from './commands/tags.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
@@ -191,6 +192,8 @@ export async function runCli() {
     .option('--timeout <duration>', 'New timeout for job execution')
     .option('--retry <count>', 'New retry count on failure')
     .option('-t, --tag <tag>', 'Set tags (replaces all existing tags, can be used multiple times)', collect, [])
+    .option('--tag-append <tag>', 'Append tags to existing tags (can be used multiple times)', collect, [])
+    .option('--tag-remove <tag>', 'Remove tags from existing tags (can be used multiple times)', collect, [])
     .action(async (job, options) => {
       const exitCode = await editCommand(job, options);
       process.exit(exitCode);
@@ -293,6 +296,31 @@ export async function runCli() {
     .option('-f, --force', 'Skip confirmation prompt', false)
     .action(async (options) => {
       const exitCode = await uninstallCommand(options);
+      process.exit(exitCode);
+    });
+
+  // Tags command
+  program
+    .command('tags <subcommand> [args...]')
+    .description('Manage job tags')
+    .option('-v, --verbose', 'Show verbose output', false)
+    .option('-a, --all', 'Apply to all jobs', false)
+    .option('-f, --force', 'Skip confirmation for destructive operations', false)
+    .addHelpText('after', `
+Examples:
+  jm2 tags list                    List all tags with job counts
+  jm2 tags list -v                 List tags with associated jobs
+  jm2 tags add production 1 2 3    Add "production" tag to jobs 1, 2, 3
+  jm2 tags rm staging 1 2          Remove "staging" tag from jobs 1, 2
+  jm2 tags rm old-tag --all        Remove "old-tag" from all jobs
+  jm2 tags clear 1 2               Clear all tags from jobs 1, 2
+  jm2 tags clear --all --force     Clear all tags from all jobs
+  jm2 tags rename old new          Rename tag "old" to "new"
+  jm2 tags jobs                    Show all jobs grouped by tag
+  jm2 tags jobs production         Show jobs with "production" tag
+    `)
+    .action(async (subcommand, args, options) => {
+      const exitCode = await tagsCommand(subcommand, args || [], options);
       process.exit(exitCode);
     });
 

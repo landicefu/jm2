@@ -26,6 +26,11 @@ import {
   createJobResumedResponse,
   createJobRunResponse,
   createFlushResultResponse,
+  createTagListResponse,
+  createTagAddResponse,
+  createTagRemoveResponse,
+  createTagClearResponse,
+  createTagRenameResponse,
 } from '../ipc/protocol.js';
 
 const __filename = fileURLToPath(import.meta.url);
@@ -331,6 +336,21 @@ async function handleIpcMessage(message) {
 
     case MessageType.RELOAD_JOBS:
       return handleReloadJobs(message);
+
+    case MessageType.TAG_LIST:
+      return handleTagList(message);
+
+    case MessageType.TAG_ADD:
+      return handleTagAdd(message);
+
+    case MessageType.TAG_REMOVE:
+      return handleTagRemove(message);
+
+    case MessageType.TAG_CLEAR:
+      return handleTagClear(message);
+
+    case MessageType.TAG_RENAME:
+      return handleTagRename(message);
 
     default:
       return {
@@ -826,6 +846,231 @@ function handleFlush(message) {
     return {
       type: MessageType.ERROR,
       message: `Failed to flush: ${error.message}`,
+    };
+  }
+}
+
+/**
+ * Handle tag list message
+ * Returns all tags grouped with their jobs
+ * @returns {object} Response
+ */
+function handleTagList() {
+  try {
+    const jobs = scheduler.getAllJobs();
+    const tags = {};
+
+    // Group jobs by tag
+    for (const job of jobs) {
+      const jobTags = job.tags || [];
+      
+      if (jobTags.length === 0) {
+        // Jobs with no tags
+        if (!tags['(no tag)']) {
+          tags['(no tag)'] = { jobs: [] };
+        }
+        tags['(no tag)'].jobs.push(job);
+      } else {
+        // Jobs with tags (can be in multiple groups)
+        for (const tag of jobTags) {
+          if (!tags[tag]) {
+            tags[tag] = { jobs: [] };
+          }
+          tags[tag].jobs.push(job);
+        }
+      }
+    }
+
+    return createTagListResponse(tags);
+  } catch (error) {
+    logger?.error(`Failed to list tags: ${error.message}`);
+    return {
+      type: MessageType.ERROR,
+      message: `Failed to list tags: ${error.message}`,
+    };
+  }
+}
+
+/**
+ * Handle tag add message
+ * Adds a tag to specified jobs
+ * @param {object} message - Message with tag and jobRefs
+ * @returns {object} Response
+ */
+function handleTagAdd(message) {
+  try {
+    const { tag, jobRefs } = message;
+    const normalizedTag = tag.trim().toLowerCase();
+    
+    const jobs = scheduler.getAllJobs();
+    const updatedJobIds = [];
+
+    for (const jobRef of jobRefs) {
+      // Find job by ID or name
+      let job = null;
+      const jobId = parseInt(jobRef, 10);
+      
+      if (!isNaN(jobId)) {
+        job = jobs.find(j => j.id === jobId);
+      }
+      if (!job) {
+        job = jobs.find(j => j.name === jobRef);
+      }
+
+      if (job) {
+        const currentTags = job.tags || [];
+        if (!currentTags.includes(normalizedTag)) {
+          const newTags = [...currentTags, normalizedTag];
+          scheduler.updateJob(job.id, { tags: newTags });
+          updatedJobIds.push(job.id);
+        }
+      }
+    }
+
+    if (updatedJobIds.length > 0) {
+      logger?.info(`Added tag "${normalizedTag}" to ${updatedJobIds.length} jobs`);
+    }
+
+    return createTagAddResponse(updatedJobIds.length, updatedJobIds);
+  } catch (error) {
+    logger?.error(`Failed to add tag: ${error.message}`);
+    return {
+      type: MessageType.ERROR,
+      message: `Failed to add tag: ${error.message}`,
+    };
+  }
+}
+
+/**
+ * Handle tag remove message
+ * Removes a tag from specified jobs or all jobs
+ * @param {object} message - Message with tag, jobRefs, and all flag
+ * @returns {object} Response
+ */
+function handleTagRemove(message) {
+  try {
+    const { tag, jobRefs, all } = message;
+    const normalizedTag = tag.trim().toLowerCase();
+    
+    const jobs = scheduler.getAllJobs();
+    const updatedJobIds = [];
+
+    // Determine which jobs to process
+    const jobsToProcess = all
+      ? jobs
+      : jobRefs.map(ref => {
+          const jobId = parseInt(ref, 10);
+          if (!isNaN(jobId)) {
+            return jobs.find(j => j.id === jobId) || jobs.find(j => j.name === ref);
+          }
+          return jobs.find(j => j.name === ref);
+        }).filter(Boolean);
+
+    for (const job of jobsToProcess) {
+      const currentTags = job.tags || [];
+      if (currentTags.includes(normalizedTag)) {
+        const newTags = currentTags.filter(t => t !== normalizedTag);
+        scheduler.updateJob(job.id, { tags: newTags });
+        updatedJobIds.push(job.id);
+      }
+    }
+
+    if (updatedJobIds.length > 0) {
+      logger?.info(`Removed tag "${normalizedTag}" from ${updatedJobIds.length} jobs`);
+    }
+
+    return createTagRemoveResponse(updatedJobIds.length, updatedJobIds);
+  } catch (error) {
+    logger?.error(`Failed to remove tag: ${error.message}`);
+    return {
+      type: MessageType.ERROR,
+      message: `Failed to remove tag: ${error.message}`,
+    };
+  }
+}
+
+/**
+ * Handle tag clear message
+ * Clears all tags from specified jobs or all jobs
+ * @param {object} message - Message with jobRefs and all flag
+ * @returns {object} Response
+ */
+function handleTagClear(message) {
+  try {
+    const { jobRefs, all } = message;
+    
+    const jobs = scheduler.getAllJobs();
+    const updatedJobIds = [];
+
+    // Determine which jobs to process
+    const jobsToProcess = all
+      ? jobs
+      : (jobRefs || []).map(ref => {
+          const jobId = parseInt(ref, 10);
+          if (!isNaN(jobId)) {
+            return jobs.find(j => j.id === jobId) || jobs.find(j => j.name === ref);
+          }
+          return jobs.find(j => j.name === ref);
+        }).filter(Boolean);
+
+    for (const job of jobsToProcess) {
+      const currentTags = job.tags || [];
+      if (currentTags.length > 0) {
+        scheduler.updateJob(job.id, { tags: [] });
+        updatedJobIds.push(job.id);
+      }
+    }
+
+    if (updatedJobIds.length > 0) {
+      logger?.info(`Cleared all tags from ${updatedJobIds.length} jobs`);
+    }
+
+    return createTagClearResponse(updatedJobIds.length, updatedJobIds);
+  } catch (error) {
+    logger?.error(`Failed to clear tags: ${error.message}`);
+    return {
+      type: MessageType.ERROR,
+      message: `Failed to clear tags: ${error.message}`,
+    };
+  }
+}
+
+/**
+ * Handle tag rename message
+ * Renames a tag across all jobs
+ * @param {object} message - Message with oldTag and newTag
+ * @returns {object} Response
+ */
+function handleTagRename(message) {
+  try {
+    const { oldTag, newTag } = message;
+    const normalizedOldTag = oldTag.trim().toLowerCase();
+    const normalizedNewTag = newTag.trim().toLowerCase();
+    
+    const jobs = scheduler.getAllJobs();
+    let updatedCount = 0;
+
+    for (const job of jobs) {
+      const currentTags = job.tags || [];
+      if (currentTags.includes(normalizedOldTag)) {
+        const newTags = currentTags.map(t => t === normalizedOldTag ? normalizedNewTag : t);
+        // Remove duplicates that might result from rename
+        const uniqueTags = [...new Set(newTags)];
+        scheduler.updateJob(job.id, { tags: uniqueTags });
+        updatedCount++;
+      }
+    }
+
+    if (updatedCount > 0) {
+      logger?.info(`Renamed tag "${normalizedOldTag}" to "${normalizedNewTag}" in ${updatedCount} jobs`);
+    }
+
+    return createTagRenameResponse(updatedCount);
+  } catch (error) {
+    logger?.error(`Failed to rename tag: ${error.message}`);
+    return {
+      type: MessageType.ERROR,
+      message: `Failed to rename tag: ${error.message}`,
     };
   }
 }

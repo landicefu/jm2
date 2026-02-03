@@ -42,7 +42,19 @@ export async function editCommand(jobRef, options = {}) {
     options.env !== undefined ||
     options.timeout !== undefined ||
     options.retry !== undefined ||
-    options.tag !== undefined;
+    options.tag !== undefined ||
+    options.tagAppend !== undefined ||
+    options.tagRemove !== undefined;
+
+  // Check for mutually exclusive tag options
+  const hasTagSet = options.tag !== undefined;
+  const hasTagAppend = options.tagAppend !== undefined;
+  const hasTagRemove = options.tagRemove !== undefined;
+
+  if (hasTagSet && (hasTagAppend || hasTagRemove)) {
+    printError('Cannot use --tag with --tag-append or --tag-remove. Use --tag to replace all tags, or --tag-append/--tag-remove to modify existing tags.');
+    return 1;
+  }
 
   if (!hasUpdates) {
     printError('No changes specified. Use options like --command, --cron, --name, etc.');
@@ -143,12 +155,30 @@ export async function editCommand(jobRef, options = {}) {
   }
 
   if (options.tag !== undefined) {
-    // Handle multiple tags
+    // Handle multiple tags (replace mode)
     const tags = Array.isArray(options.tag)
       ? options.tag
       : options.tag ? [options.tag] : [];
-    if (tags.length > 0) {
-      updates.tags = tags;
+    updates.tags = tags;
+  }
+
+  if (options.tagAppend !== undefined) {
+    // Handle tags to append
+    const tagsToAppend = Array.isArray(options.tagAppend)
+      ? options.tagAppend
+      : options.tagAppend ? [options.tagAppend] : [];
+    if (tagsToAppend.length > 0) {
+      updates.tagsAppend = tagsToAppend;
+    }
+  }
+
+  if (options.tagRemove !== undefined) {
+    // Handle tags to remove
+    const tagsToRemove = Array.isArray(options.tagRemove)
+      ? options.tagRemove
+      : options.tagRemove ? [options.tagRemove] : [];
+    if (tagsToRemove.length > 0) {
+      updates.tagsRemove = tagsToRemove;
     }
   }
 

@@ -26,6 +26,18 @@ export const MessageType = {
   JOB_RUN: 'job:run',
   JOB_RUN_RESULT: 'job:run:result',
 
+  // Tag management
+  TAG_LIST: 'tag:list',
+  TAG_LIST_RESULT: 'tag:list:result',
+  TAG_ADD: 'tag:add',
+  TAG_ADD_RESULT: 'tag:add:result',
+  TAG_REMOVE: 'tag:remove',
+  TAG_REMOVE_RESULT: 'tag:remove:result',
+  TAG_CLEAR: 'tag:clear',
+  TAG_CLEAR_RESULT: 'tag:clear:result',
+  TAG_RENAME: 'tag:rename',
+  TAG_RENAME_RESULT: 'tag:rename:result',
+
   // Flush/cleanup
   FLUSH: 'flush',
   FLUSH_RESULT: 'flush:result',
@@ -146,6 +158,72 @@ export function createFlushResultResponse(result) {
 }
 
 /**
+ * Create a tag list response
+ * @param {object} tags - Tags grouped by name with job counts
+ * @returns {{ type: string, tags: object }}
+ */
+export function createTagListResponse(tags) {
+  return {
+    type: MessageType.TAG_LIST_RESULT,
+    tags,
+  };
+}
+
+/**
+ * Create a tag add response
+ * @param {number} count - Number of jobs updated
+ * @param {string[]} jobIds - IDs of jobs that were updated
+ * @returns {{ type: string, count: number, jobIds: string[] }}
+ */
+export function createTagAddResponse(count, jobIds) {
+  return {
+    type: MessageType.TAG_ADD_RESULT,
+    count,
+    jobIds,
+  };
+}
+
+/**
+ * Create a tag remove response
+ * @param {number} count - Number of jobs updated
+ * @param {string[]} jobIds - IDs of jobs that were updated
+ * @returns {{ type: string, count: number, jobIds: string[] }}
+ */
+export function createTagRemoveResponse(count, jobIds) {
+  return {
+    type: MessageType.TAG_REMOVE_RESULT,
+    count,
+    jobIds,
+  };
+}
+
+/**
+ * Create a tag clear response
+ * @param {number} count - Number of jobs updated
+ * @param {string[]} jobIds - IDs of jobs that were updated
+ * @returns {{ type: string, count: number, jobIds: string[] }}
+ */
+export function createTagClearResponse(count, jobIds) {
+  return {
+    type: MessageType.TAG_CLEAR_RESULT,
+    count,
+    jobIds,
+  };
+}
+
+/**
+ * Create a tag rename response
+ * @param {number} count - Number of jobs updated
+ * @returns {{ type: string, count: number }}
+ */
+export function createTagRenameResponse(count) {
+  return {
+    type: MessageType.TAG_RENAME_RESULT,
+    count,
+  };
+}
+
+/**
  * Create a standard error response
  * @param {string} message - Error message
  * @returns {{ type: string, message: string }}
@@ -180,4 +258,9 @@ export default {
   createJobResumedResponse,
   createJobRunResponse,
   createFlushResultResponse,
+  createTagListResponse,
+  createTagAddResponse,
+  createTagRemoveResponse,
+  createTagClearResponse,
+  createTagRenameResponse,
 };

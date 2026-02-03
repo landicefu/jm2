@@ -335,9 +335,34 @@ export class Scheduler {
       return null;
     }
 
+    // Handle tag append/remove operations
+    let finalTags = job.tags || [];
+    
+    if (updates.tagsAppend && updates.tagsAppend.length > 0) {
+      // Normalize and append new tags
+      const tagsToAppend = updates.tagsAppend.map(t => t.trim().toLowerCase());
+      finalTags = [...new Set([...finalTags, ...tagsToAppend])];
+    }
+    
+    if (updates.tagsRemove && updates.tagsRemove.length > 0) {
+      // Normalize and remove tags
+      const tagsToRemove = updates.tagsRemove.map(t => t.trim().toLowerCase());
+      finalTags = finalTags.filter(t => !tagsToRemove.includes(t));
+    }
+
+    // Create a clean updates object without the append/remove markers
+    const cleanUpdates = { ...updates };
+    delete cleanUpdates.tagsAppend;
+    delete cleanUpdates.tagsRemove;
+    
+    // If we modified tags via append/remove, update the tags field
+    if (updates.tagsAppend || updates.tagsRemove) {
+      cleanUpdates.tags = finalTags;
+    }
+
     const updatedJob = {
       ...job,
-      ...updates,
+      ...cleanUpdates,
       id: jobId, // Don't allow changing ID
       updatedAt: new Date().toISOString(),
     };
