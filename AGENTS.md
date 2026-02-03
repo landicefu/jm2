@@ -1,5 +1,17 @@
 # Agent Guidelines
 
+## Post-Task Workflow
+
+After completing work on a task:
+
+1. **Add tests** for new functionality
+2. **Run tests** to ensure everything passes
+   ```bash
+   npm run test:run -- --reporter=dot
+   ```
+3. **Commit** using [Conventional Commits](#conventional-commits) format
+4. **Update README.md** with any new features, commands, or changes
+
 ## Testing
 
 Run full tests with concise output:
