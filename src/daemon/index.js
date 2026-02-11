@@ -25,6 +25,7 @@ import {
   createJobPausedResponse,
   createJobResumedResponse,
   createJobRunResponse,
+  createJobStreamOutput,
   createFlushResultResponse,
   createTagListResponse,
   createTagAddResponse,
@@ -285,9 +286,10 @@ async function runDaemon(options = {}) {
 /**
  * Handle IPC messages
  * @param {object} message - Incoming message
+ * @param {import('node:net').Socket} socket - Socket for streaming responses
  * @returns {Promise<object|null>} Response message
  */
-async function handleIpcMessage(message) {
+async function handleIpcMessage(message, socket) {
   logger?.debug(`Received message: ${JSON.stringify(message)}`);
 
   switch (message.type) {
@@ -329,7 +331,7 @@ async function handleIpcMessage(message) {
       return handleJobResume(message);
 
     case MessageType.JOB_RUN:
-      return handleJobRun(message);
+      return handleJobRun(message, socket);
 
     case MessageType.FLUSH:
       return handleFlush(message);
@@ -647,9 +649,10 @@ function handleJobResume(message) {
 /**
  * Handle job run message (manual execution)
  * @param {object} message - Message with jobId
+ * @param {import('node:net').Socket} socket - Socket for streaming output
  * @returns {object} Response
  */
-async function handleJobRun(message) {
+async function handleJobRun(message, socket) {
   try {
     let jobId = message.jobId;
 
@@ -681,8 +684,19 @@ async function handleJobRun(message) {
 
     // Execute the job
     if (message.wait) {
-      // Wait for execution and return results
-      const result = await executeJobAndReturnResult(job);
+      // Stream function to send output chunks
+      const streamOutput = (stream, data) => {
+        if (socket && !socket.destroyed) {
+          try {
+            socket.write(JSON.stringify(createJobStreamOutput(stream, data)) + '\n');
+          } catch (err) {
+            // Ignore socket write errors
+          }
+        }
+      };
+
+      // Wait for execution with streaming and return results
+      const result = await executeJobAndReturnResult(job, streamOutput);
       return createJobRunResponse({
         jobId,
         status: result.status,
@@ -713,9 +727,10 @@ async function handleJobRun(message) {
 /**
  * Execute a job and return the result
  * @param {object} job - Job to execute
+ * @param {Function} onStream - Callback for streaming output (stream, data) => void
  * @returns {Promise<object>} Execution result
  */
-async function executeJobAndReturnResult(job) {
+async function executeJobAndReturnResult(job, onStream) {
   if (!scheduler.executor) {
     return {
       status: 'failed',
@@ -724,7 +739,7 @@ async function executeJobAndReturnResult(job) {
   }
 
   try {
-    const result = await scheduler.executor.executeJobWithRetry(job);
+    const result = await scheduler.executor.executeJobWithRetry(job, { onStream });
 
     // Update job stats
     const updatedJob = scheduler.getJob(job.id);

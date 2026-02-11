@@ -143,6 +143,9 @@ export function executeJob(job, options = {}) {
         const chunk = data.toString();
         stdout += chunk;
         jobLogger.info(`[stdout] ${chunk.trim()}`);
+        if (execOptions.onStream) {
+          execOptions.onStream('stdout', chunk);
+        }
       });
     }
 
@@ -152,6 +155,9 @@ export function executeJob(job, options = {}) {
         const chunk = data.toString();
         stderr += chunk;
         jobLogger.warn(`[stderr] ${chunk.trim()}`);
+        if (execOptions.onStream) {
+          execOptions.onStream('stderr', chunk);
+        }
       });
     }
 

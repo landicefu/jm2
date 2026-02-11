@@ -3,7 +3,7 @@
  * Manually execute a job immediately
  */
 
-import { send } from '../../ipc/client.js';
+import { send, sendWithStream } from '../../ipc/client.js';
 import { MessageType } from '../../ipc/protocol.js';
 import { printSuccess, printError, printInfo } from '../utils/output.js';
 import { isDaemonRunning } from '../../daemon/index.js';
@@ -35,33 +35,35 @@ export async function runCommand(jobRef, options = {}) {
 
     printInfo(`Running job: ${jobRef}...`);
 
-    const response = await send(message, { timeoutMs: options.wait ? null : 5000 });
+    if (options.wait) {
+      // Use streaming for real-time output
+      const response = await sendWithStream(message, {
+        timeoutMs: null,
+        onStream: (chunk) => {
+          if (chunk.stream === 'stdout') {
+            process.stdout.write(chunk.data);
+          } else if (chunk.stream === 'stderr') {
+            process.stderr.write(chunk.data);
+          }
+        },
+      });
 
-    if (response.type === MessageType.ERROR) {
-      printError(response.message);
-      return 1;
-    }
-
-    if (response.type === MessageType.JOB_RUN_RESULT) {
-      const result = response.result;
-
-      if (result.error) {
-        printError(`Job execution failed: ${result.error}`);
+      if (response.type === MessageType.ERROR) {
+        printError(response.message);
         return 1;
       }
 
-      if (options.wait) {
-        // Display execution results
+      if (response.type === MessageType.JOB_RUN_RESULT) {
+        const result = response.result;
+
+        if (result.error) {
+          printError(`Job execution failed: ${result.error}`);
+          return 1;
+        }
+
+        // Display final results
         if (result.status === 'success') {
           printSuccess('Job completed successfully');
-          if (result.stdout) {
-            console.log('\n--- stdout ---');
-            console.log(result.stdout);
-          }
-          if (result.stderr) {
-            console.log('\n--- stderr ---');
-            console.log(result.stderr);
-          }
           console.log(`\nExit code: ${result.exitCode || 0}`);
           console.log(`Duration: ${formatDuration(result.duration || 0)}`);
         } else if (result.status === 'timeout') {
@@ -69,22 +71,26 @@ export async function runCommand(jobRef, options = {}) {
           return 1;
         } else {
           printError(`Job failed with status: ${result.status}`);
-          if (result.stdout) {
-            console.log('\n--- stdout ---');
-            console.log(result.stdout);
-          }
-          if (result.stderr) {
-            console.log('\n--- stderr ---');
-            console.log(result.stderr);
-          }
           return 1;
         }
-      } else {
-        printSuccess(`Job queued for execution (ID: ${result.jobId || jobRef})`);
-        printInfo('Use --wait to wait for completion and see output');
+
+        return 0;
+      }
+    } else {
+      // Non-waiting mode - just queue the job
+      const response = await send(message, { timeoutMs: 5000 });
+
+      if (response.type === MessageType.ERROR) {
+        printError(response.message);
+        return 1;
       }
 
-      return 0;
+      if (response.type === MessageType.JOB_RUN_RESULT) {
+        const result = response.result;
+        printSuccess(`Job queued for execution (ID: ${result.jobId || jobRef})`);
+        printInfo('Use --wait to wait for completion and see output');
+        return 0;
+      }
     }
 
     printError('Unexpected response from daemon');

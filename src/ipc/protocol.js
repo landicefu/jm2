@@ -25,6 +25,7 @@ export const MessageType = {
   JOB_RESUMED: 'job:resumed',
   JOB_RUN: 'job:run',
   JOB_RUN_RESULT: 'job:run:result',
+  JOB_STREAM_OUTPUT: 'job:stream:output',
 
   // Tag management
   TAG_LIST: 'tag:list',
@@ -144,6 +145,20 @@ export function createJobRunResponse(result) {
 }
 
 /**
+ * Create a job stream output message
+ * @param {string} stream - 'stdout' or 'stderr'
+ * @param {string} data - Output data
+ * @returns {{ type: string, stream: string, data: string }}
+ */
+export function createJobStreamOutput(stream, data) {
+  return {
+    type: MessageType.JOB_STREAM_OUTPUT,
+    stream,
+    data,
+  };
+}
+
+/**
  * Create a flush result response
  * @param {object} result - Flush result with jobsRemoved, logsRemoved, historyRemoved
  * @returns {{ type: string, jobsRemoved: number, logsRemoved: number, historyRemoved: number }}
@@ -257,6 +272,7 @@ export default {
   createJobPausedResponse,
   createJobResumedResponse,
   createJobRunResponse,
+  createJobStreamOutput,
   createFlushResultResponse,
   createTagListResponse,
   createTagAddResponse,

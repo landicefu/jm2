@@ -62,7 +62,7 @@ export function startIpcServer(options = {}) {
         }
 
         if (onMessage) {
-          Promise.resolve(onMessage(message))
+          Promise.resolve(onMessage(message, socket))
             .then(response => {
               if (response) {
                 socket.write(JSON.stringify(response) + '\n');
