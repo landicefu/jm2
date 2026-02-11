@@ -138,9 +138,8 @@ export async function addCommand(command, options = {}) {
       jobData.tags = tags;
     }
 
-    if (options.cwd) {
-      jobData.cwd = options.cwd;
-    }
+    // Set working directory - use explicit cwd or default to current directory
+    jobData.cwd = options.cwd || process.cwd();
 
     if (options.env) {
       // Parse env options (format: KEY=value)

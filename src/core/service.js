@@ -188,6 +188,8 @@ class DarwinService extends PlatformService {
     <dict>
         <key>JM2_DATA_DIR</key>
         <string>${dataDir}</string>
+        <key>PATH</key>
+        <string>${process.env.PATH}</string>
     </dict>
 </dict>
 </plist>`;
