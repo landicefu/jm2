@@ -137,6 +137,11 @@ function printJobDetails(job) {
   console.log(`${chalk.bold('Created:')}      ${formatDate(job.createdAt)}`);
   console.log(`${chalk.bold('Updated:')}      ${formatDate(job.updatedAt)}`);
 
+  // Recreate command
+  console.log();
+  console.log(`${chalk.bold('Recreate Command:')}`);
+  console.log(`  ${generateRecreateCommand(job)}`);
+
   // Log file path
   console.log();
   const logFile = getJobLogFile(job.name || `job-${job.id}`);
@@ -154,6 +159,65 @@ function printJobDetails(job) {
   }
 
   console.log();
+}
+
+/**
+ * Generate the jm2 add command to recreate this job
+ * @param {object} job - Job object
+ * @returns {string} Command string
+ */
+function generateRecreateCommand(job) {
+  const parts = ['jm2 add'];
+  
+  // Add the command itself (quoted if it contains spaces)
+  const command = job.command.includes(' ') ? `"${job.command}"` : job.command;
+  parts.push(command);
+  
+  // Add name
+  if (job.name) {
+    parts.push(`--name ${job.name}`);
+  }
+  
+  // Add scheduling option
+  if (job.cron) {
+    parts.push(`--cron "${job.cron}"`);
+  } else if (job.runAt) {
+    // For runAt, we need to format it nicely
+    const runDate = new Date(job.runAt);
+    const dateStr = runDate.toISOString().slice(0, 16).replace('T', ' ');
+    parts.push(`--at "${dateStr}"`);
+  }
+  
+  // Add working directory
+  if (job.cwd) {
+    parts.push(`--cwd "${job.cwd}"`);
+  }
+  
+  // Add tags
+  if (job.tags && job.tags.length > 0) {
+    for (const tag of job.tags) {
+      parts.push(`--tag ${tag}`);
+    }
+  }
+  
+  // Add environment variables
+  if (job.env && Object.keys(job.env).length > 0) {
+    for (const [key, value] of Object.entries(job.env)) {
+      parts.push(`--env "${key}=${value}"`);
+    }
+  }
+  
+  // Add timeout
+  if (job.timeout) {
+    parts.push(`--timeout ${job.timeout}`);
+  }
+  
+  // Add retry
+  if (job.retry > 0) {
+    parts.push(`--retry ${job.retry}`);
+  }
+  
+  return parts.join(' ');
 }
 
 export default { showCommand };
