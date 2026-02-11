@@ -29,6 +29,8 @@ import { importCommand } from './commands/import.js';
 import { installCommand } from './commands/install.js';
 import { uninstallCommand } from './commands/uninstall.js';
 import { tagsCommand } from './commands/tags.js';
+import { backupCommand } from './commands/backup.js';
+import { restoreCommand } from './commands/restore.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
@@ -296,6 +298,28 @@ export async function runCli() {
     .option('-f, --force', 'Skip confirmation prompt', false)
     .action(async (options) => {
       const exitCode = await uninstallCommand(options);
+      process.exit(exitCode);
+    });
+
+  // Backup command
+  program
+    .command('backup [file]')
+    .description('Create a backup of all JM2 data (jobs, config, history, logs)')
+    .option('-o, --output <file>', 'Output file path (default: jm2-backup-<timestamp>.json.gz)')
+    .action(async (file, options) => {
+      const outputPath = file || options.output;
+      const exitCode = await backupCommand(outputPath, options);
+      process.exit(exitCode);
+    });
+
+  // Restore command
+  program
+    .command('restore <file>')
+    .description('Restore JM2 data from a backup file')
+    .option('-y, --yes', 'Skip confirmation prompt', false)
+    .option('-f, --force', 'Force restore even if daemon is running', false)
+    .action(async (file, options) => {
+      const exitCode = await restoreCommand(file, options);
       process.exit(exitCode);
     });
 
