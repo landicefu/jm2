@@ -44,13 +44,15 @@ export function send(message, options = {}) {
     let buffer = '';
     let finished = false;
 
-    const timeout = setTimeout(() => {
-      if (!finished) {
-        finished = true;
-        client.destroy();
-        reject(new DaemonError('IPC request timed out', 'ETIMEOUT'));
-      }
-    }, timeoutMs);
+    const timeout = timeoutMs !== null && timeoutMs !== undefined
+      ? setTimeout(() => {
+          if (!finished) {
+            finished = true;
+            client.destroy();
+            reject(new DaemonError('IPC request timed out', 'ETIMEOUT'));
+          }
+        }, timeoutMs)
+      : null;
 
     client.on('error', err => {
       if (!finished) {

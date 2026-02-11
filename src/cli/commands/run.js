@@ -35,7 +35,7 @@ export async function runCommand(jobRef, options = {}) {
 
     printInfo(`Running job: ${jobRef}...`);
 
-    const response = await send(message);
+    const response = await send(message, { timeoutMs: options.wait ? null : 5000 });
 
     if (response.type === MessageType.ERROR) {
       printError(response.message);
