@@ -142,8 +142,9 @@ export async function runCli() {
   program
     .command('show <job>')
     .description('Show detailed information about a job')
-    .action(async (job) => {
-      const exitCode = await showCommand(job);
+    .option('--recreate-command-only', 'Show only the recreate command', false)
+    .action(async (job, options) => {
+      const exitCode = await showCommand(job, options);
       process.exit(exitCode);
     });
 

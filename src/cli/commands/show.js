@@ -59,7 +59,11 @@ export async function showCommand(jobRef, options = {}) {
         return 1;
       }
 
-      printJobDetails(job);
+      if (options.recreateCommandOnly) {
+        console.log(generateRecreateCommand(job));
+      } else {
+        printJobDetails(job);
+      }
       return 0;
     }
 
