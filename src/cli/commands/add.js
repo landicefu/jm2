@@ -31,6 +31,10 @@ Common examples of JM2 add:
   jm2 add "weekly-backup.sh" --cron "0 0 * * 0"
   jm2 add "monthly-task.sh" --cron "0 0 1 * *"
 
+  # Advanced cron patterns (multiple ranges, steps)
+  jm2 add "check.sh" --cron "0 */5 9-18 * * *"    # Every 5 min, 9AM-6PM
+  jm2 add "offpeak.sh" --cron "*/30 0-8,18-23 * * *"  # Every 30 min, off-peak hours
+
   # Add a job with a name
   jm2 add "backup.sh" --name "daily-backup" --cron "0 2 * * *"
 
