@@ -31,6 +31,7 @@ export class Scheduler {
     }
 
     this.running = true;
+    this.lastTickTime = Date.now();
     this.logger.info('Scheduler starting...');
 
     // Load jobs from storage
@@ -132,7 +133,7 @@ export class Scheduler {
     // Calculate next run time for active jobs
     let nextRun = null;
     if (job.status === JobStatus.ACTIVE) {
-      nextRun = this.calculateNextRun(job);
+      nextRun = this.calculateNextRun(job, new Date());
     }
 
     this.jobs.set(job.id, {
@@ -147,15 +148,16 @@ export class Scheduler {
   /**
    * Calculate the next run time for a job
    * @param {object} job - Job object
+   * @param {Date} fromDate - Date to calculate from
    * @returns {Date|null} Next run time or null
    */
-  calculateNextRun(job) {
+  calculateNextRun(job, fromDate) {
     if (job.status !== JobStatus.ACTIVE) {
       return null;
     }
 
     if (job.type === JobType.CRON && job.cron) {
-      return getNextRunTime(job.cron);
+      return getNextRunTime(job.cron, fromDate);
     }
 
     if (job.type === JobType.ONCE && job.runAt) {
@@ -165,6 +167,57 @@ export class Scheduler {
     }
 
     return null;
+  }
+
+  /**
+   * Calculate the next run time for a cron job, accounting for missed runs
+   * This ensures that after sleep/wake, we find the very next occurrence
+   * @param {object} job - Job object
+   * @param {Date} originalRunTime - The time the job was originally scheduled to run
+   * @returns {Date|null} Next run time or null
+   */
+  calculateNextRunAfterExecution(job, originalRunTime) {
+    if (job.status !== JobStatus.ACTIVE || job.type !== JobType.CRON || !job.cron) {
+      return this.calculateNextRun(job, new Date());
+    }
+
+    const now = new Date();
+    let nextRun = this.calculateNextRun(job, originalRunTime);
+
+    // Keep calculating until we find a time in the future
+    // This handles the case where the system woke from sleep and we missed multiple runs
+    while (nextRun && nextRun <= now) {
+      nextRun = this.calculateNextRun(job, nextRun);
+    }
+
+    return nextRun;
+  }
+
+  /**
+   * Recalculate next run times for periodic jobs that have drifted into the past
+   * This handles system sleep/wake scenarios where nextRun becomes stale
+   * @param {Date} now - Current time
+   */
+  recalculateStalePeriodicJobs(now) {
+    for (const [id, job] of this.jobs) {
+      if (
+        job.status === JobStatus.ACTIVE &&
+        job.type === JobType.CRON &&
+        job.cron &&
+        job.nextRun &&
+        job.nextRun < now
+      ) {
+        // Job's next run is in the past - recalculate from now to find next future occurrence
+        const newNextRun = this.calculateNextRun(job, now);
+        if (newNextRun && newNextRun !== job.nextRun) {
+          this.logger.debug(
+            `Recalculating next run for job ${id} (${job.name || 'unnamed'}): ` +
+            `${job.nextRun.toISOString()} → ${newNextRun.toISOString()}`
+          );
+          this.updateJobNextRun(id, newNextRun);
+        }
+      }
+    }
   }
 
   /**
@@ -249,10 +302,31 @@ export class Scheduler {
       return [];
     }
 
+    // Detect sleep/wake events by checking if too much time has passed since last tick
+    const now = Date.now();
+    const timeSinceLastTick = this.lastTickTime ? now - this.lastTickTime : 0;
+    const sleepThreshold = this.checkIntervalMs * 5; // If more than 5 intervals passed, likely woke from sleep
+
+    if (timeSinceLastTick > sleepThreshold) {
+      const secondsAsleep = Math.round(timeSinceLastTick / 1000);
+      this.logger.info(`System wake detected - was asleep for ${secondsAsleep}s, catching up on due jobs`);
+    }
+
+    this.lastTickTime = now;
+
+    const nowDate = new Date();
+
+    // Recalculate next run for periodic jobs that have drifted into the past
+    // This handles system sleep/wake scenarios
+    this.recalculateStalePeriodicJobs(nowDate);
+
     const dueJobs = this.getDueJobs();
 
     for (const job of dueJobs) {
       this.logger.debug(`Job ${job.id} (${job.name || 'unnamed'}) is due`);
+
+      // Store the original scheduled time before execution
+      const originalNextRun = job.nextRun ? new Date(job.nextRun) : new Date();
 
       // Execute the job
       this.executeJob(job);
@@ -261,8 +335,12 @@ export class Scheduler {
       if (job.type === JobType.ONCE) {
         this.updateJobStatus(job.id, JobStatus.COMPLETED);
       } else {
-        // For cron jobs, recalculate next run time
-        const nextRun = this.calculateNextRun({ ...job, status: JobStatus.ACTIVE });
+        // For cron jobs, recalculate next run time from the original scheduled time
+        // This ensures we don't miss runs after system wake from sleep
+        const nextRun = this.calculateNextRunAfterExecution(
+          { ...job, status: JobStatus.ACTIVE },
+          originalNextRun
+        );
         this.updateJobNextRun(job.id, nextRun);
       }
     }
@@ -291,7 +369,7 @@ export class Scheduler {
     }
 
     // Calculate initial next run
-    const nextRun = this.calculateNextRun(jobData);
+    const nextRun = this.calculateNextRun(jobData, new Date());
     const job = { ...jobData, nextRun };
 
     // Add to memory
@@ -368,7 +446,7 @@ export class Scheduler {
     };
 
     // Recalculate next run if needed
-    updatedJob.nextRun = this.calculateNextRun(updatedJob);
+    updatedJob.nextRun = this.calculateNextRun(updatedJob, new Date());
 
     this.jobs.set(jobId, updatedJob);
     this.persistJobs();
@@ -390,7 +468,7 @@ export class Scheduler {
       // Recalculate next run when activating
       const job = this.jobs.get(jobId);
       if (job) {
-        updates.nextRun = this.calculateNextRun({ ...job, status });
+        updates.nextRun = this.calculateNextRun({ ...job, status }, new Date());
       }
     } else {
       updates.nextRun = null;

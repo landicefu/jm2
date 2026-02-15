@@ -111,7 +111,7 @@ describe('Scheduler', () => {
         cron: '* * * * *',
         status: JobStatus.PAUSED,
       };
-      expect(scheduler.calculateNextRun(job)).toBeNull();
+      expect(scheduler.calculateNextRun(job, new Date())).toBeNull();
     });
 
     it('should calculate next run for cron jobs', () => {
@@ -121,7 +121,7 @@ describe('Scheduler', () => {
         cron: '* * * * *',
         status: JobStatus.ACTIVE,
       };
-      const nextRun = scheduler.calculateNextRun(job);
+      const nextRun = scheduler.calculateNextRun(job, new Date());
       expect(nextRun).toBeInstanceOf(Date);
       expect(nextRun.getTime()).toBeGreaterThan(Date.now());
     });
@@ -134,7 +134,7 @@ describe('Scheduler', () => {
         runAt: futureDate.toISOString(),
         status: JobStatus.ACTIVE,
       };
-      const nextRun = scheduler.calculateNextRun(job);
+      const nextRun = scheduler.calculateNextRun(job, new Date());
       expect(nextRun).toEqual(futureDate);
     });
 
@@ -147,7 +147,7 @@ describe('Scheduler', () => {
         status: JobStatus.ACTIVE,
       };
       // Should still return the date so it can be processed as due
-      expect(scheduler.calculateNextRun(job)).toEqual(pastDate);
+      expect(scheduler.calculateNextRun(job, new Date())).toEqual(pastDate);
     });
   });
 
