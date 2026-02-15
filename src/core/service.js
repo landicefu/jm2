@@ -178,8 +178,6 @@ class DarwinService extends PlatformService {
     </array>
     <key>RunAtLoad</key>
     <true/>
-    <key>KeepAlive</key>
-    <true/>
     <key>StandardOutPath</key>
     <string>${stdoutPath}</string>
     <key>StandardErrorPath</key>
@@ -344,8 +342,6 @@ Type=forking
 ExecStart=${nodePath} ${jm2Path} start
 ExecStop=${nodePath} ${jm2Path} stop
 ExecReload=${nodePath} ${jm2Path} restart
-Restart=always
-RestartSec=10
 Environment="JM2_DATA_DIR=${dataDir}"
 StandardOutput=append:${join(logDir, 'service-out.log')}
 StandardError=append:${join(logDir, 'service-err.log')}
