@@ -196,6 +196,7 @@ export class Scheduler {
   /**
    * Recalculate next run times for periodic jobs that have drifted into the past
    * This handles system sleep/wake scenarios where nextRun becomes stale
+   * Only recalculates jobs that are significantly overdue (missed multiple runs)
    * @param {Date} now - Current time
    */
   recalculateStalePeriodicJobs(now) {
@@ -204,17 +205,21 @@ export class Scheduler {
         job.status === JobStatus.ACTIVE &&
         job.type === JobType.CRON &&
         job.cron &&
-        job.nextRun &&
-        job.nextRun < now
+        job.nextRun
       ) {
-        // Job's next run is in the past - recalculate from now to find next future occurrence
-        const newNextRun = this.calculateNextRun(job, now);
-        if (newNextRun && newNextRun !== job.nextRun) {
-          this.logger.debug(
-            `Recalculating next run for job ${id} (${job.name || 'unnamed'}): ` +
-            `${job.nextRun.toISOString()} → ${newNextRun.toISOString()}`
-          );
-          this.updateJobNextRun(id, newNextRun);
+        const timeSinceNextRun = now.getTime() - job.nextRun.getTime();
+        const isSignificantlyOverdue = timeSinceNextRun > this.checkIntervalMs * 2;
+
+        if (isSignificantlyOverdue) {
+          // Job is significantly overdue - recalculate from now to find next future occurrence
+          const newNextRun = this.calculateNextRun(job, now);
+          if (newNextRun && newNextRun !== job.nextRun) {
+            this.logger.debug(
+              `Recalculating next run for job ${id} (${job.name || 'unnamed'}): ` +
+              `${job.nextRun.toISOString()} → ${newNextRun.toISOString()}`
+            );
+            this.updateJobNextRun(id, newNextRun);
+          }
         }
       }
     }
