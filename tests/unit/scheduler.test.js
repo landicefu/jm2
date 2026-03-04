@@ -257,6 +257,48 @@ describe('Scheduler', () => {
       const updatedJob = scheduler.getJob(1);
       expect(updatedJob.nextRun.getTime()).toBeGreaterThan(Date.now());
     });
+
+    it('should execute overdue cron jobs after system wake from sleep', async () => {
+      // Create a scheduler with a short check interval
+      scheduler = new Scheduler({ logger: mockLogger, checkIntervalMs: 100 });
+      scheduler.start();
+
+      // Mock executor to track calls
+      const mockExecutor = {
+        executeJobWithRetry: vi.fn().mockResolvedValue({ status: 'success', output: '' }),
+      };
+      scheduler.executor = mockExecutor;
+
+      // Add a cron job that runs every 5 minutes
+      scheduler.addJob({
+        id: 1,
+        name: 'obsidian-sync',
+        command: 'echo sync',
+        type: JobType.CRON,
+        cron: '*/5 * * * *',
+        status: JobStatus.ACTIVE,
+      });
+
+      // Simulate the job was scheduled to run 12 hours ago
+      const twelveHoursAgo = new Date(Date.now() - 12 * 60 * 60 * 1000);
+      const job = scheduler.getJob(1);
+      job.nextRun = twelveHoursAgo;
+
+      // Trigger a tick - this should detect the overdue job and execute it
+      scheduler.tick();
+
+      // Wait for async execution
+      await new Promise(resolve => setTimeout(resolve, 50));
+
+      // The executor should have been called for the overdue job
+      expect(mockExecutor.executeJobWithRetry).toHaveBeenCalledTimes(1);
+      expect(mockLogger.info).toHaveBeenCalledWith('Found 1 overdue job(s) to execute after system wake');
+      expect(mockLogger.info).toHaveBeenCalledWith('Executing overdue job 1 (obsidian-sync)');
+
+      // The next run should be scheduled for the future (not 12 hours ago)
+      const updatedJob = scheduler.getJob(1);
+      expect(updatedJob.nextRun.getTime()).toBeGreaterThan(Date.now());
+    });
   });
 
   describe('addJob', () => {

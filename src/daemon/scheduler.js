@@ -194,6 +194,34 @@ export class Scheduler {
   }
 
   /**
+   * Find periodic jobs that are overdue (nextRun is in the past)
+   * This handles system sleep/wake scenarios where jobs should have run while asleep
+   * @param {Date} now - Current time
+   * @returns {Array} Array of overdue job IDs
+   */
+  findOverduePeriodicJobs(now) {
+    const overdueJobs = [];
+
+    for (const [id, job] of this.jobs) {
+      if (
+        job.status === JobStatus.ACTIVE &&
+        job.type === JobType.CRON &&
+        job.cron &&
+        job.nextRun
+      ) {
+        const timeSinceNextRun = now.getTime() - job.nextRun.getTime();
+        const isOverdue = timeSinceNextRun > this.checkIntervalMs * 2;
+
+        if (isOverdue) {
+          overdueJobs.push(id);
+        }
+      }
+    }
+
+    return overdueJobs;
+  }
+
+  /**
    * Recalculate next run times for periodic jobs that have drifted into the past
    * This handles system sleep/wake scenarios where nextRun becomes stale
    * Only recalculates jobs that are significantly overdue (missed multiple runs)
@@ -321,8 +349,26 @@ export class Scheduler {
 
     const nowDate = new Date();
 
-    // Recalculate next run for periodic jobs that have drifted into the past
-    // This handles system sleep/wake scenarios
+    // Check for overdue jobs BEFORE recalculating next run times
+    // This ensures jobs that should have run while system was asleep get executed
+    const overdueJobIds = this.findOverduePeriodicJobs(nowDate);
+    if (overdueJobIds.length > 0) {
+      this.logger.info(`Found ${overdueJobIds.length} overdue job(s) to execute after system wake`);
+      for (const jobId of overdueJobIds) {
+        const job = this.jobs.get(jobId);
+        if (job) {
+          this.logger.info(`Executing overdue job ${jobId} (${job.name || 'unnamed'})`);
+          // Execute immediately without waiting for the normal due jobs check
+          this.executeJob(job);
+          // Update next run time from now for the next scheduled occurrence
+          const nextRun = this.calculateNextRun(job, nowDate);
+          this.updateJobNextRun(jobId, nextRun);
+        }
+      }
+    }
+
+    // Recalculate next run for any remaining periodic jobs that have drifted into the past
+    // This handles edge cases and ensures nextRun times are in the future
     this.recalculateStalePeriodicJobs(nowDate);
 
     const dueJobs = this.getDueJobs();
