@@ -133,7 +133,21 @@ export class Scheduler {
     // Calculate next run time for active jobs
     let nextRun = null;
     if (job.status === JobStatus.ACTIVE) {
-      nextRun = this.calculateNextRun(job, new Date());
+      // Check if there's a stored nextRun that is in the past (missed execution)
+      const storedNextRun = job.nextRun || job.nextRunISO;
+      if (storedNextRun) {
+        const storedDate = new Date(storedNextRun);
+        const now = new Date();
+        // If stored nextRun is in the past and it's a cron job, keep it so tick() will detect it as overdue
+        if (storedDate < now && job.type === JobType.CRON) {
+          nextRun = storedDate;
+        }
+      }
+      
+      // If nextRun wasn't set from stored value, calculate a new one
+      if (!nextRun) {
+        nextRun = this.calculateNextRun(job, new Date());
+      }
     }
 
     this.jobs.set(job.id, {
@@ -360,8 +374,9 @@ export class Scheduler {
           this.logger.info(`Executing overdue job ${jobId} (${job.name || 'unnamed'})`);
           // Execute immediately without waiting for the normal due jobs check
           this.executeJob(job);
-          // Update next run time from now for the next scheduled occurrence
-          const nextRun = this.calculateNextRun(job, nowDate);
+          // Calculate next run from the original scheduled time to maintain cadence
+          const originalNextRun = job.nextRun ? new Date(job.nextRun) : new Date();
+          const nextRun = this.calculateNextRunAfterExecution(job, originalNextRun);
           this.updateJobNextRun(jobId, nextRun);
         }
       }
@@ -581,6 +596,14 @@ export class Scheduler {
       ...job,
       nextRun: job.nextRun ? job.nextRun.toISOString() : null,
     }));
+    
+    // Safety check: don't persist empty jobs array if we had jobs before
+    // This prevents accidental data loss during startup/shutdown
+    if (jobsArray.length === 0 && this.jobs.size > 0) {
+      this.logger.error('BUG: Attempted to save empty jobs array but jobs Map is not empty!');
+      return;
+    }
+    
     saveJobs(jobsArray);
   }
 

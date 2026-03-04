@@ -101,6 +101,53 @@ describe('Scheduler', () => {
       scheduler.loadJobs();
       expect(scheduler.jobs.size).toBe(0);
     });
+
+    it('should preserve overdue nextRun for cron jobs on daemon restart', () => {
+      // Simulate a job that was scheduled to run while daemon was stopped
+      const twelveHoursAgo = new Date(Date.now() - 12 * 60 * 60 * 1000);
+      const storedJobs = [
+        {
+          id: 1,
+          name: 'obsidian-sync',
+          command: 'echo sync',
+          type: JobType.CRON,
+          cron: '*/5 * * * *',
+          status: JobStatus.ACTIVE,
+          nextRun: twelveHoursAgo.toISOString(), // This is the key: stored nextRun is in the past
+        },
+      ];
+      storage.getJobs.mockReturnValue(storedJobs);
+
+      scheduler.loadJobs();
+
+      const job = scheduler.getJob(1);
+      // The nextRun should be preserved as the past date, not recalculated to future
+      expect(job.nextRun).toEqual(twelveHoursAgo);
+      expect(job.nextRun.getTime()).toBeLessThan(Date.now());
+    });
+
+    it('should calculate new nextRun for cron jobs when stored nextRun is in the future', () => {
+      const fiveMinutesFromNow = new Date(Date.now() + 5 * 60 * 1000);
+      const storedJobs = [
+        {
+          id: 1,
+          name: 'future-job',
+          command: 'echo test',
+          type: JobType.CRON,
+          cron: '*/5 * * * *',
+          status: JobStatus.ACTIVE,
+          nextRun: fiveMinutesFromNow.toISOString(),
+        },
+      ];
+      storage.getJobs.mockReturnValue(storedJobs);
+
+      scheduler.loadJobs();
+
+      const job = scheduler.getJob(1);
+      // Should calculate a new nextRun from current time
+      expect(job.nextRun).toBeInstanceOf(Date);
+      expect(job.nextRun.getTime()).toBeGreaterThan(Date.now() - 1000); // Allow small timing difference
+    });
   });
 
   describe('calculateNextRun', () => {
