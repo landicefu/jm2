@@ -501,7 +501,7 @@ class WindowsService extends PlatformService {
     const dataDir = getDataDir();
 
     const wrapper = `@echo off
-set JM2_DATA_DIR=${dataDir}
+set "JM2_DATA_DIR=${dataDir}"
 "${nodePath}" "${jm2Path}" start
 `;
 
@@ -521,6 +521,13 @@ set JM2_DATA_DIR=${dataDir}
       // Create wrapper script
       const wrapperPath = this.getWrapperPath();
       const wrapper = this.generateWrapper();
+
+      // Ensure the data directory exists before writing the wrapper
+      const dir = dirname(wrapperPath);
+      if (!existsSync(dir)) {
+        mkdirSync(dir, { recursive: true });
+      }
+
       writeFileSync(wrapperPath, wrapper, 'utf8');
 
       // Install service using sc.exe
