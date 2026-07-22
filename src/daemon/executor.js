@@ -6,7 +6,7 @@
 import { spawn, exec } from 'node:child_process';
 import { addHistoryEntry } from '../core/storage.js';
 import { getJobLogFile, ensureLogsDir } from '../utils/paths.js';
-import { createLogger } from '../core/logger.js';
+import { createLogger, getLogRotationOptions } from '../core/logger.js';
 import { parseDuration } from '../utils/duration.js';
 import { promisify } from 'node:util';
 
@@ -55,12 +55,16 @@ export function executeJob(job, options = {}) {
     const logFile = getJobLogFile(jobName);
     ensureLogsDir();
     const loggerName = job.name || String(jobId);
-    const jobLogger = createLogger({ name: loggerName, file: logFile });
+    const jobLogger = createLogger({
+      name: loggerName,
+      file: logFile,
+      rotation: getLogRotationOptions(),
+    });
 
     // Log execution start
     jobLogger.info(`Starting execution: ${job.command}`);
     jobLogger.info(`Working directory: ${job.cwd || process.cwd()}`);
-    
+
     // Prepare spawn options
     const spawnOptions = {
       shell: job.shell || execOptions.shell,
@@ -96,7 +100,7 @@ export function executeJob(job, options = {}) {
         stdout: '',
         stderr: '',
       };
-      
+
       jobLogger.error(`Failed to spawn process: ${error.message}`);
       recordHistory(job, result);
       resolve(result);
@@ -113,7 +117,7 @@ export function executeJob(job, options = {}) {
       timeoutId = setTimeout(() => {
         timedOut = true;
         jobLogger.warn(`Job timed out after ${timeoutMs}ms, killing process...`);
-        
+
         // Kill the entire process group (negative PID)
         // This ensures child processes spawned by the shell are also killed
         try {
@@ -122,7 +126,7 @@ export function executeJob(job, options = {}) {
           // Fallback to single process kill if process group kill fails
           childProcess.kill('SIGTERM');
         }
-        
+
         // Force kill after grace period
         setTimeout(() => {
           try {
@@ -273,13 +277,13 @@ function recordHistory(job, result) {
 export async function executeJobWithRetry(job, options = {}) {
   const maxRetries = job.retry || 0;
   const retryDelay = options.retryDelay || 1000; // Default 1 second delay between retries
-  
+
   let lastResult = null;
   let attempt = 0;
 
   while (attempt <= maxRetries) {
     attempt++;
-    
+
     // Update job retry count for tracking
     if (attempt > 1) {
       const logger = createLogger({ name: 'executor' });
@@ -398,7 +402,7 @@ export function formatDuration(ms) {
  */
 export function createExecutor(options = {}) {
   const { logger } = options;
-  
+
   return {
     executeJob: (job, execOptions = {}) => executeJob(job, execOptions),
     executeJobWithRetry: (job, execOptions = {}) => executeJobWithRetry(job, execOptions),

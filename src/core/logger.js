@@ -117,12 +117,12 @@ function ensureFileDir(filePath) {
  */
 function writeToFile(filePath, line, rotation = null) {
   ensureFileDir(filePath);
-  
+
   // Check for rotation if options provided
   if (rotation && rotation.maxSize > 0) {
     checkAndRotate(filePath, rotation.maxSize, rotation.maxFiles || 3);
   }
-  
+
   appendFileSync(filePath, line + '\n', 'utf8');
 }
 
@@ -153,7 +153,7 @@ function rotateLogs(filePath, maxFiles) {
   for (let i = maxFiles - 1; i >= 0; i--) {
     const srcPath = i === 0 ? filePath : `${filePath}.${i}`;
     const destPath = `${filePath}.${i + 1}`;
-    
+
     try {
       if (existsSync(srcPath)) {
         if (i === maxFiles - 1) {
@@ -196,22 +196,22 @@ export function parseSize(size) {
   if (typeof size === 'number') {
     return size;
   }
-  
+
   const match = String(size).trim().toLowerCase().match(/^(\d+(?:\.\d+)?)\s*(b|kb|mb|gb)?$/);
   if (!match) {
     return 0;
   }
-  
+
   const value = parseFloat(match[1]);
   const unit = match[2] || 'b';
-  
+
   const multipliers = {
     'b': 1,
     'kb': 1024,
     'mb': 1024 * 1024,
     'gb': 1024 * 1024 * 1024,
   };
-  
+
   return Math.floor(value * multipliers[unit]);
 }
 
@@ -222,11 +222,11 @@ export function parseSize(size) {
  */
 export function formatSize(bytes) {
   if (bytes === 0) return '0B';
-  
+
   const units = ['B', 'KB', 'MB', 'GB', 'TB'];
   const i = Math.floor(Math.log(bytes) / Math.log(1024));
   const value = bytes / Math.pow(1024, i);
-  
+
   return `${value.toFixed(i === 0 ? 0 : 1)}${units[i]}`;
 }
 
@@ -273,24 +273,30 @@ export function createLogger(options = {}) {
 }
 
 /**
+ * Build log rotation options from the current configuration.
+ * Shared by the daemon logger, job logger, and executor so that every
+ * on-disk log honours the same size cap and retention count.
+ * @returns {{ maxSize: number, maxFiles: number }} Rotation options
+ */
+export function getLogRotationOptions() {
+  return {
+    maxSize: getConfigValue('logging.maxFileSize', 10 * 1024 * 1024),
+    maxFiles: getConfigValue('logging.maxFiles', 5),
+  };
+}
+
+/**
  * Create a daemon logger
  * Logs to ~/.jm2/daemon.log
  * @param {object} options - Additional options
  * @returns {object} Logger instance
  */
 export function createDaemonLogger(options = {}) {
-  // Get rotation settings from config
-  const maxFileSize = getConfigValue('logging.maxFileSize', 10 * 1024 * 1024);
-  const maxFiles = getConfigValue('logging.maxFiles', 5);
-  
   return createLogger({
     name: 'daemon',
     file: getDaemonLogFile(),
     console: options.foreground || false,
-    rotation: {
-      maxSize: maxFileSize,
-      maxFiles: maxFiles,
-    },
+    rotation: getLogRotationOptions(),
     ...options,
   });
 }
@@ -304,19 +310,12 @@ export function createDaemonLogger(options = {}) {
  */
 export function createJobLogger(jobName, options = {}) {
   ensureLogsDir();
-  
-  // Get rotation settings from config
-  const maxFileSize = getConfigValue('logging.maxFileSize', 10 * 1024 * 1024);
-  const maxFiles = getConfigValue('logging.maxFiles', 5);
-  
+
   return createLogger({
     name: jobName,
     file: getJobLogFile(jobName),
     console: false,
-    rotation: {
-      maxSize: maxFileSize,
-      maxFiles: maxFiles,
-    },
+    rotation: getLogRotationOptions(),
     ...options,
   });
 }
@@ -386,6 +385,7 @@ export default {
   createLogger,
   createDaemonLogger,
   createJobLogger,
+  getLogRotationOptions,
   logJobStart,
   logJobComplete,
   logJobOutput,

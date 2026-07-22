@@ -7,7 +7,7 @@ import { writeFileSync, unlinkSync, existsSync, readFileSync, readdirSync, statS
 import { spawn } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
 import { dirname, join } from 'node:path';
-import { getPidFile, ensureDataDir, getSocketPath, getLogsDir, getJobLogFile } from '../utils/paths.js';
+import { getPidFile, ensureDataDir, getSocketPath, getLogsDir, getJobLogFile, getDaemonLogFile } from '../utils/paths.js';
 import { getJobs, saveJobs, getHistory, saveHistory } from '../core/storage.js';
 import { getConfig } from '../core/config.js';
 import { createDaemonLogger } from '../core/logger.js';
@@ -41,6 +41,12 @@ let logger = null;
 let ipcServer = null;
 let scheduler = null;
 let isShuttingDown = false;
+let logCleanupInterval = null;
+
+/**
+ * How often to run the log retention cleanup (once per day).
+ */
+const LOG_CLEANUP_INTERVAL_MS = 24 * 60 * 60 * 1000;
 
 /**
  * Write PID file
@@ -146,6 +152,12 @@ function handleShutdown() {
 
   logger?.info('Shutting down daemon...');
 
+  // Stop periodic log cleanup
+  if (logCleanupInterval) {
+    clearInterval(logCleanupInterval);
+    logCleanupInterval = null;
+  }
+
   // Stop scheduler
   if (scheduler) {
     scheduler.stop();
@@ -171,6 +183,28 @@ function handleShutdown() {
  * @param {boolean} options.foreground - Run in foreground (don't daemonize)
  * @returns {Promise<void>}
  */
+/**
+ * Read the last few lines of the daemon log, used to surface the real
+ * cause when a detached daemon process fails to start.
+ * @returns {string} Recent log lines, or '' if unavailable
+ */
+function getDaemonLogTail(lines = 10) {
+  try {
+    const logFile = getDaemonLogFile();
+    if (!existsSync(logFile)) {
+      return '';
+    }
+    const content = readFileSync(logFile, 'utf8');
+    return content
+      .split(/\r?\n/)
+      .filter(Boolean)
+      .slice(-lines)
+      .join('\n');
+  } catch {
+    return '';
+  }
+}
+
 export async function startDaemon(options = {}) {
   const { foreground = false } = options;
 
@@ -193,6 +227,12 @@ export async function startDaemon(options = {}) {
       env: { ...process.env, JM2_DAEMONIZED: '1' },
     });
 
+    // Capture spawn-level failures (e.g. node not found) before we unref.
+    let spawnError = null;
+    child.on('error', err => {
+      spawnError = err;
+    });
+
     child.unref();
 
     // Wait a moment to check if process started
@@ -200,10 +240,63 @@ export async function startDaemon(options = {}) {
 
     // Check if daemon started successfully
     if (!isDaemonRunning()) {
-      throw new Error('Failed to start daemon');
+      const detail = spawnError
+        ? spawnError.message
+        : getDaemonLogTail();
+      throw new Error(
+        detail ? `daemon process exited during startup: ${detail}` : 'daemon process exited during startup'
+      );
     }
 
     console.log(`Daemon started (PID: ${readPidFile()})`);
+  }
+}
+
+/**
+ * Delete job log files older than the configured retention period.
+ * Controlled by cleanup.logRetentionDays; a value <= 0 disables cleanup.
+ * Matches both active (name.log) and rotated (name.log.1) job logs.
+ */
+function cleanupOldLogs() {
+  try {
+    const retentionDays = getConfig().cleanup?.logRetentionDays ?? 30;
+    if (!retentionDays || retentionDays <= 0) {
+      return; // Cleanup disabled
+    }
+
+    const logsDir = getLogsDir();
+    if (!existsSync(logsDir)) {
+      return;
+    }
+
+    const maxAgeMs = retentionDays * 24 * 60 * 60 * 1000;
+    const now = Date.now();
+    let removed = 0;
+
+    for (const file of readdirSync(logsDir)) {
+      // Match active (name.log) and rotated (name.log.1, .2, ...) job logs
+      if (!/\.log(\.\d+)?$/.test(file)) {
+        continue;
+      }
+      const filePath = join(logsDir, file);
+      try {
+        const stats = statSync(filePath);
+        if (now - stats.mtime.getTime() > maxAgeMs) {
+          unlinkSync(filePath);
+          removed++;
+        }
+      } catch {
+        // Ignore per-file errors (e.g. file removed concurrently)
+      }
+    }
+
+    if (removed > 0) {
+      logger?.info(
+        `Log retention cleanup removed ${removed} log file(s) older than ${retentionDays} days`
+      );
+    }
+  } catch (error) {
+    logger?.warn(`Log retention cleanup failed: ${error.message}`);
   }
 }
 
@@ -273,6 +366,11 @@ async function runDaemon(options = {}) {
     handleShutdown();
     return;
   }
+
+  // Enforce log retention: clean up once at startup, then daily
+  cleanupOldLogs();
+  logCleanupInterval = setInterval(cleanupOldLogs, LOG_CLEANUP_INTERVAL_MS);
+  logCleanupInterval.unref?.();
 
   logger.info('Daemon ready');
 
@@ -370,10 +468,10 @@ async function handleIpcMessage(message, socket) {
 function handleJobAdd(message) {
   try {
     const jobData = message.jobData;
-    
+
     // Create job with defaults
     let job = createJob(jobData);
-    
+
     // Validate job
     const validation = validateJob(job);
     if (!validation.valid) {
@@ -382,13 +480,13 @@ function handleJobAdd(message) {
         message: `Invalid job: ${validation.errors.join(', ')}`,
       };
     }
-    
+
     // Normalize job
     job = normalizeJob(job);
-    
+
     // Add to scheduler
     const addedJob = scheduler.addJob(job);
-    
+
     logger?.info(`Job added via IPC: ${addedJob.id} (${addedJob.name || 'unnamed'})`);
     return createJobAddedResponse(addedJob);
   } catch (error) {
@@ -408,24 +506,24 @@ function handleJobAdd(message) {
 function handleJobList(message) {
   try {
     let jobs = scheduler.getAllJobs();
-    
+
     // Apply filters if provided
     if (message.filters) {
       const { status, tag, type } = message.filters;
-      
+
       if (status) {
         jobs = jobs.filter(j => j.status === status);
       }
-      
+
       if (tag) {
         jobs = jobs.filter(j => j.tags && j.tags.includes(tag.toLowerCase()));
       }
-      
+
       if (type) {
         jobs = jobs.filter(j => j.type === type);
       }
     }
-    
+
     return createJobListResponse(jobs);
   } catch (error) {
     logger?.error(`Failed to list jobs: ${error.message}`);
@@ -444,7 +542,7 @@ function handleJobList(message) {
 function handleJobGet(message) {
   try {
     let job = null;
-    
+
     if (message.jobId) {
       job = scheduler.getJob(message.jobId);
     } else if (message.jobName) {
@@ -452,7 +550,7 @@ function handleJobGet(message) {
       const jobs = scheduler.getAllJobs();
       job = jobs.find(j => j.name === message.jobName) || null;
     }
-    
+
     return createJobGetResponse(job);
   } catch (error) {
     logger?.error(`Failed to get job: ${error.message}`);
@@ -472,7 +570,7 @@ function handleJobRemove(message) {
   try {
     let jobId = message.jobId;
     let jobName = null;
-    
+
     // If name is provided instead of ID, look it up
     if (!jobId && message.jobName) {
       const jobs = scheduler.getAllJobs();
@@ -488,19 +586,19 @@ function handleJobRemove(message) {
         jobName = job.name;
       }
     }
-    
+
     if (!jobId) {
       return {
         type: MessageType.ERROR,
         message: 'Job ID or name is required',
       };
     }
-    
+
     const success = scheduler.removeJob(jobId);
-    
+
     if (success) {
       logger?.info(`Job removed via IPC: ${jobId}`);
-      
+
       // Delete the job's log file
       const logFile = getJobLogFile(jobName || `job-${jobId}`);
       if (existsSync(logFile)) {
@@ -512,7 +610,7 @@ function handleJobRemove(message) {
         }
       }
     }
-    
+
     return createJobRemovedResponse(success);
   } catch (error) {
     logger?.error(`Failed to remove job: ${error.message}`);
@@ -531,7 +629,7 @@ function handleJobRemove(message) {
 function handleJobUpdate(message) {
   try {
     let jobId = message.jobId;
-    
+
     // If name is provided instead of ID, look it up
     if (!jobId && message.jobName) {
       const jobs = scheduler.getAllJobs();
@@ -540,20 +638,20 @@ function handleJobUpdate(message) {
         jobId = job.id;
       }
     }
-    
+
     if (!jobId) {
       return {
         type: MessageType.ERROR,
         message: 'Job not found',
       };
     }
-    
+
     const updatedJob = scheduler.updateJob(jobId, message.updates);
-    
+
     if (updatedJob) {
       logger?.info(`Job updated via IPC: ${jobId}`);
     }
-    
+
     return createJobUpdatedResponse(updatedJob);
   } catch (error) {
     logger?.error(`Failed to update job: ${error.message}`);
@@ -572,7 +670,7 @@ function handleJobUpdate(message) {
 function handleJobPause(message) {
   try {
     let jobId = message.jobId;
-    
+
     // If name is provided instead of ID, look it up
     if (!jobId && message.jobName) {
       const jobs = scheduler.getAllJobs();
@@ -581,20 +679,20 @@ function handleJobPause(message) {
         jobId = job.id;
       }
     }
-    
+
     if (!jobId) {
       return {
         type: MessageType.ERROR,
         message: 'Job not found',
       };
     }
-    
+
     const pausedJob = scheduler.updateJobStatus(jobId, JobStatus.PAUSED);
-    
+
     if (pausedJob) {
       logger?.info(`Job paused via IPC: ${jobId}`);
     }
-    
+
     return createJobPausedResponse(pausedJob);
   } catch (error) {
     logger?.error(`Failed to pause job: ${error.message}`);
@@ -613,7 +711,7 @@ function handleJobPause(message) {
 function handleJobResume(message) {
   try {
     let jobId = message.jobId;
-    
+
     // If name is provided instead of ID, look it up
     if (!jobId && message.jobName) {
       const jobs = scheduler.getAllJobs();
@@ -622,20 +720,20 @@ function handleJobResume(message) {
         jobId = job.id;
       }
     }
-    
+
     if (!jobId) {
       return {
         type: MessageType.ERROR,
         message: 'Job not found',
       };
     }
-    
+
     const resumedJob = scheduler.updateJobStatus(jobId, JobStatus.ACTIVE);
-    
+
     if (resumedJob) {
       logger?.info(`Job resumed via IPC: ${jobId}`);
     }
-    
+
     return createJobResumedResponse(resumedJob);
   } catch (error) {
     logger?.error(`Failed to resume job: ${error.message}`);
@@ -878,7 +976,7 @@ function handleTagList() {
     // Group jobs by tag
     for (const job of jobs) {
       const jobTags = job.tags || [];
-      
+
       if (jobTags.length === 0) {
         // Jobs with no tags
         if (!tags['(no tag)']) {
@@ -916,7 +1014,7 @@ function handleTagAdd(message) {
   try {
     const { tag, jobRefs } = message;
     const normalizedTag = tag.trim().toLowerCase();
-    
+
     const jobs = scheduler.getAllJobs();
     const updatedJobIds = [];
 
@@ -924,7 +1022,7 @@ function handleTagAdd(message) {
       // Find job by ID or name
       let job = null;
       const jobId = parseInt(jobRef, 10);
-      
+
       if (!isNaN(jobId)) {
         job = jobs.find(j => j.id === jobId);
       }
@@ -966,7 +1064,7 @@ function handleTagRemove(message) {
   try {
     const { tag, jobRefs, all } = message;
     const normalizedTag = tag.trim().toLowerCase();
-    
+
     const jobs = scheduler.getAllJobs();
     const updatedJobIds = [];
 
@@ -1013,7 +1111,7 @@ function handleTagRemove(message) {
 function handleTagClear(message) {
   try {
     const { jobRefs, all } = message;
-    
+
     const jobs = scheduler.getAllJobs();
     const updatedJobIds = [];
 
@@ -1061,7 +1159,7 @@ function handleTagRename(message) {
     const { oldTag, newTag } = message;
     const normalizedOldTag = oldTag.trim().toLowerCase();
     const normalizedNewTag = newTag.trim().toLowerCase();
-    
+
     const jobs = scheduler.getAllJobs();
     let updatedCount = 0;
 
