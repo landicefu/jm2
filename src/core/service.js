@@ -532,7 +532,7 @@ set "JM2_DATA_DIR=${dataDir}"
 
       // Install service using sc.exe
       const serviceName = this.getServiceName();
-      const binPath = `cmd.exe /c "${wrapperPath}"`;
+      const binPath = `cmd.exe /c \\"${wrapperPath}\\"`;
 
       execSync(`sc create "${serviceName}" binPath= "${binPath}" start= auto`, {
         stdio: 'inherit'
