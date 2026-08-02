@@ -805,8 +805,9 @@ async function handleJobRun(message, socket) {
         error: result.error,
       });
     } else {
-      // Execute asynchronously (don't wait)
-      scheduler.executeJob(job);
+      // Execute asynchronously (don't wait). Manual runs bypass the
+      // requirements gate — the user is explicitly forcing execution.
+      scheduler.executeJob(job, { ignoreRequirements: true });
       return createJobRunResponse({
         jobId,
         status: 'queued',

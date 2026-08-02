@@ -46,6 +46,31 @@ function collect(value, previous) {
 }
 
 /**
+ * Help text describing run requirements and their per-platform support.
+ * Shown after `jm2 add --help` and `jm2 edit --help`.
+ */
+const REQUIREMENTS_HELP = `
+Run Requirements (skip a scheduled run unless the condition holds):
+
+  Requirement                 macOS  Linux  Windows
+  ac                          yes    yes    yes
+  wifi                        yes    yes    yes
+  ssid:<name>                 yes    yes    yes
+  ethernet                    yes    yes    yes
+  online                      yes    yes    yes
+  vpn / not-vpn               yes    yes    yes*
+  disk-free:<gb>[:<path>]     yes    yes    yes
+  path-exists:<path>          yes    yes    yes
+  screen-locked / -unlocked   yes    no     no
+  script:<js>                 yes    yes    yes
+
+  * Windows VPN detection is best-effort.
+  A requirement not supported on the current OS is treated as met (the job still
+  runs); 'jm2 add'/'jm2 edit' warn you when a requirement won't apply here.
+  Manual 'jm2 run' ignores requirements.
+`;
+
+/**
  * Get package version from package.json
  * @returns {string} Package version
  */
@@ -121,7 +146,9 @@ export async function runCli() {
     .option('-e, --env <env>', 'Environment variable (format: KEY=value, can be used multiple times)', collect, [])
     .option('--timeout <duration>', 'Timeout for job execution (e.g., "30m", "2h")')
     .option('--retry <count>', 'Number of retry attempts on failure', '0')
+    .option('-R, --require <requirement>', 'Add a run requirement; run is skipped if unmet (repeatable). E.g. "ac", "wifi", "ssid:Home", "disk-free:10", "online", "path-exists:/mnt/data"', collect, [])
     .option('--examples', 'Show common examples of jm2 add')
+    .addHelpText('after', REQUIREMENTS_HELP)
     .action(async (command, options) => {
       const exitCode = await addCommand(command, options);
       process.exit(exitCode);
@@ -197,6 +224,11 @@ export async function runCli() {
     .option('-t, --tag <tag>', 'Set tags (replaces all existing tags, can be used multiple times)', collect, [])
     .option('--tag-append <tag>', 'Append tags to existing tags (can be used multiple times)', collect, [])
     .option('--tag-remove <tag>', 'Remove tags from existing tags (can be used multiple times)', collect, [])
+    .option('--require <requirement>', 'Replace all run requirements (can be used multiple times)', collect, [])
+    .option('--require-append <requirement>', 'Add run requirement(s) to the existing ones (can be used multiple times)', collect, [])
+    .option('--require-remove <requirement>', 'Remove run requirement(s) from the existing ones (can be used multiple times)', collect, [])
+    .option('--clear-requirements', 'Remove all run requirements')
+    .addHelpText('after', REQUIREMENTS_HELP)
     .action(async (job, options) => {
       const exitCode = await editCommand(job, options);
       process.exit(exitCode);

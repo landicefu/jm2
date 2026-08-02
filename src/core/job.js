@@ -5,6 +5,7 @@
 
 import { parseDuration } from '../utils/duration.js';
 import { validateCronExpression } from '../utils/cron.js';
+import { validateRequirements, normalizeRequirements } from './requirements.js';
 
 /**
  * Job status constants
@@ -30,6 +31,7 @@ export const JobType = {
 export const JOB_DEFAULTS = {
   status: JobStatus.ACTIVE,
   tags: [],
+  requirements: [],
   env: {},
   cwd: null,
   shell: null,
@@ -49,7 +51,7 @@ export const JOB_DEFAULTS = {
  */
 export function createJob(data) {
   const now = new Date().toISOString();
-  
+
   return {
     ...JOB_DEFAULTS,
     ...data,
@@ -65,31 +67,31 @@ export function createJob(data) {
  */
 export function validateJob(job) {
   const errors = [];
-  
+
   // Required fields
   if (!job.command || typeof job.command !== 'string' || job.command.trim() === '') {
     errors.push('command is required and must be a non-empty string');
   }
-  
+
   // Must have either cron or runAt
   if (!job.cron && !job.runAt) {
     errors.push('Either cron expression or runAt datetime is required');
   }
-  
+
   if (job.cron && job.runAt) {
     errors.push('Cannot specify both cron and runAt');
   }
-  
+
   // Validate job type
   if (job.type && !Object.values(JobType).includes(job.type)) {
     errors.push(`Invalid job type: ${job.type}. Must be one of: ${Object.values(JobType).join(', ')}`);
   }
-  
+
   // Validate status
   if (job.status && !Object.values(JobStatus).includes(job.status)) {
     errors.push(`Invalid job status: ${job.status}. Must be one of: ${Object.values(JobStatus).join(', ')}`);
   }
-  
+
   // Validate name if provided
   if (job.name !== undefined && job.name !== null) {
     if (typeof job.name !== 'string') {
@@ -100,7 +102,7 @@ export function validateJob(job) {
       errors.push('name can only contain letters, numbers, underscores, and hyphens');
     }
   }
-  
+
   // Validate tags
   if (job.tags !== undefined) {
     if (!Array.isArray(job.tags)) {
@@ -114,14 +116,22 @@ export function validateJob(job) {
       }
     }
   }
-  
+
   // Validate env
   if (job.env !== undefined && job.env !== null) {
     if (typeof job.env !== 'object' || Array.isArray(job.env)) {
       errors.push('env must be an object');
     }
   }
-  
+
+  // Validate requirements
+  if (job.requirements !== undefined && job.requirements !== null) {
+    const reqValidation = validateRequirements(job.requirements);
+    if (!reqValidation.valid) {
+      errors.push(...reqValidation.errors);
+    }
+  }
+
   // Validate timeout
   if (job.timeout !== undefined && job.timeout !== null) {
     if (typeof job.timeout === 'string') {
@@ -134,14 +144,14 @@ export function validateJob(job) {
       errors.push('timeout must be a positive number (milliseconds) or duration string');
     }
   }
-  
+
   // Validate retry
   if (job.retry !== undefined && job.retry !== null) {
     if (typeof job.retry !== 'number' || job.retry < 0 || !Number.isInteger(job.retry)) {
       errors.push('retry must be a non-negative integer');
     }
   }
-  
+
   // Validate cron expression using cron-parser
   if (job.cron) {
     if (typeof job.cron !== 'string') {
@@ -153,7 +163,7 @@ export function validateJob(job) {
       }
     }
   }
-  
+
   // Validate runAt
   if (job.runAt) {
     if (typeof job.runAt !== 'string') {
@@ -165,7 +175,7 @@ export function validateJob(job) {
       }
     }
   }
-  
+
   return {
     valid: errors.length === 0,
     errors,
@@ -179,35 +189,40 @@ export function validateJob(job) {
  */
 export function normalizeJob(job) {
   const normalized = { ...job };
-  
+
   // Determine job type
   if (job.cron) {
     normalized.type = JobType.CRON;
   } else if (job.runAt) {
     normalized.type = JobType.ONCE;
   }
-  
+
   // Normalize tags
   if (normalized.tags) {
     normalized.tags = normalized.tags.map(tag => tag.trim().toLowerCase());
     normalized.tags = [...new Set(normalized.tags)]; // Remove duplicates
   }
-  
+
+  // Normalize requirements (trim, drop empties, dedupe; case preserved)
+  if (normalized.requirements) {
+    normalized.requirements = normalizeRequirements(normalized.requirements);
+  }
+
   // Normalize timeout to milliseconds
   if (normalized.timeout && typeof normalized.timeout === 'string') {
     normalized.timeout = parseDuration(normalized.timeout);
   }
-  
+
   // Trim command
   if (normalized.command) {
     normalized.command = normalized.command.trim();
   }
-  
+
   // Trim name
   if (normalized.name) {
     normalized.name = normalized.name.trim();
   }
-  
+
   return normalized;
 }
 

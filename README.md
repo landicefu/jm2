@@ -12,6 +12,7 @@ A simple yet powerful job scheduler for Node.js, combining the functionality of 
 - 🖥️ **Simple CLI** - Intuitive command-line interface inspired by pm2
 - 📊 **Job Monitoring** - View job status, history, and logs
 - 🏷️ **Job Tagging** - Organize jobs with tags for easy management
+- ✅ **Run Requirements** - Skip a scheduled run unless conditions are met (AC power, Wi-Fi/SSID, internet, free disk, mounted path, custom script, and more)
 
 ## Installation
 
@@ -147,6 +148,7 @@ Options:
 - `--shell <shell>` - Shell to use (default: /bin/sh on Unix, cmd.exe on Windows)
 - `--timeout <duration>` - Maximum execution time (e.g., "5m", "1h")
 - `--retry <count>` - Number of retries on failure (default: 0)
+- `--require, -R <requirement>` - Add a run requirement; the run is skipped if unmet (can be used multiple times). See [Run Requirements](#run-requirements)
 - `--paused` - Add job in paused state
 
 #### `jm2 list`
@@ -317,6 +319,10 @@ Options:
 - `--tag, -t <tag>` - Set tags (replaces all existing tags, can be used multiple times)
 - `--tag-append <tag>` - Append tags to existing tags (can be used multiple times)
 - `--tag-remove <tag>` - Remove specific tags (can be used multiple times)
+- `--require <requirement>` - Replace all run requirements (can be used multiple times)
+- `--require-append <requirement>` - Add run requirement(s) to the existing ones (can be used multiple times)
+- `--require-remove <requirement>` - Remove run requirement(s) from the existing ones (can be used multiple times)
+- `--clear-requirements` - Remove all run requirements
 - `--cwd <path>` - New working directory
 - `--env, -e <KEY=value>` - Set/update environment variable
 - `--timeout <duration>` - New timeout value
@@ -370,6 +376,69 @@ Options:
 - `-v, --verbose` - Show verbose output (list associated jobs)
 - `-a, --all` - Apply to all jobs (for rm and clear commands)
 - `-f, --force` - Skip confirmation for destructive operations
+
+### Run Requirements
+
+A job can declare **requirements** (preconditions). Before each scheduled run, the daemon checks them; if **any** requirement is not met, that run is **skipped** and the reason is written to the job's log (see `jm2 logs <job>`) and shown by `jm2 show <job>`. Jobs with no requirements always run, so existing jobs are unaffected.
+
+Add requirements with `--require` / `-R` on `jm2 add` (repeatable), and manage them on `jm2 edit` with `--require` (replace all), `--require-append`, `--require-remove`, and `--clear-requirements`.
+
+Available requirements:
+
+| Requirement | Met when… |
+|-------------|-----------|
+| `ac` | On AC power (not battery) |
+| `wifi` | Connected to Wi-Fi |
+| `ssid:<name>` | Connected to the Wi-Fi network `<name>` |
+| `ethernet` | Connected via wired Ethernet |
+| `online` | The internet is reachable |
+| `vpn` / `not-vpn` | A VPN connection is / is not active |
+| `disk-free:<gb>[:<path>]` | At least `<gb>` GB free on `<path>` (defaults to `/`) |
+| `path-exists:<path>` | `<path>` exists (e.g. a mounted volume); paths may contain spaces |
+| `screen-locked` / `screen-unlocked` | The screen is locked / unlocked |
+| `script:<js>` | An inline Node.js expression/body returns a truthy value |
+
+Platform support:
+
+| Requirement | macOS | Linux | Windows |
+|-------------|:-----:|:-----:|:-------:|
+| `ac` | ✅ | ✅ | ✅ |
+| `wifi`, `ssid` | ✅ | ✅¹ | ✅ |
+| `ethernet` | ✅ | ✅¹ | ✅ |
+| `online` | ✅ | ✅ | ✅ |
+| `vpn`, `not-vpn` | ✅ | ✅ | ⚠️² |
+| `disk-free`, `path-exists` | ✅ | ✅ | ✅ |
+| `screen-locked`, `screen-unlocked` | ✅ | ❌ | ❌ |
+| `script` | ✅ | ✅ | ✅ |
+
+A requirement that is **not supported** on the current OS is *unevaluable* and, per the "unevaluable → met" policy, is **treated as met (the job still runs)**. `jm2 add`/`jm2 edit` warn when a requirement won't apply on the current platform, and the daemon notes it in the job's log at run time. Requirement checks run in the daemon via direct executable invocation, so they don't depend on which shell launched jm2.
+
+¹ Linux Wi-Fi/SSID/Ethernet detection needs `iwgetid`/`nmcli`. ² Windows VPN detection is best-effort.
+
+Behavior:
+
+- **Skip is per-run.** A cron job waits for its next scheduled time; a one-time (`--at`/`--in`) job is marked skipped and will not run.
+- **Unevaluable requirements run anyway.** If a requirement cannot be checked on the current machine, it is treated as met.
+- **`script:` errors skip.** If an inline script throws, times out (5s), or has a syntax error, the requirement is treated as **not met**. The script may `return` a value or be a bare expression, and receives `require`, `process`, `os`, `job`, and `console`.
+- **Manual `jm2 run` bypasses requirements** — an explicit run always executes.
+
+Examples:
+
+```bash
+# Only back up when on AC power, online, and with 10GB free
+jm2 add "backup.sh" --cron "0 2 * * *" --name backup --require ac --require online --require "disk-free:10"
+
+# Only sync on the home Wi-Fi network
+jm2 add "sync.sh" --cron "*/30 * * * *" --require "ssid:HomeNet"
+
+# Only run when an external drive is mounted (path may contain spaces)
+jm2 add "archive.sh" --cron "0 * * * *" --require "path-exists:/Volumes/My Backup"
+
+# Manage requirements on an existing job
+jm2 edit backup --require-append not-vpn      # add one
+jm2 edit backup --require-remove online       # remove one
+jm2 edit backup --clear-requirements          # remove all
+```
 
 ### Logs and History
 

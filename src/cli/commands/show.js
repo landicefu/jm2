@@ -99,6 +99,15 @@ function printJobDetails(job) {
     console.log(`${chalk.bold('Last Run:')}     ${formatDate(job.lastRun)} (${formatRelativeTime(job.lastRun)})`);
   }
 
+  if (job.lastResult === 'skipped' && job.lastSkippedAt) {
+    console.log(
+      `${chalk.bold('Last Skipped:')} ${formatDate(job.lastSkippedAt)} (${formatRelativeTime(job.lastSkippedAt)})`
+    );
+    if (job.lastSkipReason) {
+      console.log(`${chalk.bold('Skip Reason:')}  ${chalk.yellow(job.lastSkipReason)}`);
+    }
+  }
+
   // Command
   console.log();
   console.log(`${chalk.bold('Command:')}`);
@@ -124,6 +133,15 @@ function printJobDetails(job) {
   if (job.tags && job.tags.length > 0) {
     console.log();
     console.log(`${chalk.bold('Tags:')}         ${job.tags.join(', ')}`);
+  }
+
+  // Requirements
+  if (job.requirements && job.requirements.length > 0) {
+    console.log();
+    console.log(`${chalk.bold('Requirements:')} (run is skipped if any is not met)`);
+    for (const requirement of job.requirements) {
+      console.log(`  ${requirement}`);
+    }
   }
 
   // Timeout and retry
@@ -172,16 +190,16 @@ function printJobDetails(job) {
  */
 function generateRecreateCommand(job) {
   const parts = ['jm2 add'];
-  
+
   // Add the command itself (quoted if it contains spaces)
   const command = job.command.includes(' ') ? `"${job.command}"` : job.command;
   parts.push(command);
-  
+
   // Add name
   if (job.name) {
     parts.push(`--name ${job.name}`);
   }
-  
+
   // Add scheduling option
   if (job.cron) {
     parts.push(`--cron "${job.cron}"`);
@@ -191,36 +209,43 @@ function generateRecreateCommand(job) {
     const dateStr = runDate.toISOString().slice(0, 16).replace('T', ' ');
     parts.push(`--at "${dateStr}"`);
   }
-  
+
   // Add working directory
   if (job.cwd) {
     parts.push(`--cwd "${job.cwd}"`);
   }
-  
+
   // Add tags
   if (job.tags && job.tags.length > 0) {
     for (const tag of job.tags) {
       parts.push(`--tag ${tag}`);
     }
   }
-  
+
   // Add environment variables
   if (job.env && Object.keys(job.env).length > 0) {
     for (const [key, value] of Object.entries(job.env)) {
       parts.push(`--env "${key}=${value}"`);
     }
   }
-  
+
   // Add timeout
   if (job.timeout) {
     parts.push(`--timeout ${job.timeout}`);
   }
-  
+
   // Add retry
   if (job.retry > 0) {
     parts.push(`--retry ${job.retry}`);
   }
-  
+
+  // Add requirements
+  if (job.requirements && job.requirements.length > 0) {
+    for (const requirement of job.requirements) {
+      parts.push(`--require "${requirement}"`);
+    }
+  }
+
   return parts.join(' ');
 }
 

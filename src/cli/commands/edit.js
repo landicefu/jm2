@@ -8,6 +8,8 @@ import { MessageType } from '../../ipc/protocol.js';
 import { printSuccess, printError, printInfo } from '../utils/output.js';
 import { isDaemonRunning } from '../../daemon/index.js';
 import { parseDateTime, parseRunIn } from '../../utils/datetime.js';
+import { validateRequirements } from '../../core/requirements.js';
+import { warnUnsupportedRequirements } from './add.js';
 
 /**
  * Execute the edit command
@@ -44,7 +46,11 @@ export async function editCommand(jobRef, options = {}) {
     options.retry !== undefined ||
     options.tag !== undefined ||
     options.tagAppend !== undefined ||
-    options.tagRemove !== undefined;
+    options.tagRemove !== undefined ||
+    (options.require !== undefined && options.require.length > 0) ||
+    (options.requireAppend !== undefined && options.requireAppend.length > 0) ||
+    (options.requireRemove !== undefined && options.requireRemove.length > 0) ||
+    options.clearRequirements !== undefined;
 
   // Check for mutually exclusive tag options
   // options.tag has a default of [], so check if it's non-empty
@@ -54,6 +60,22 @@ export async function editCommand(jobRef, options = {}) {
 
   if (hasTagSet && (hasTagAppend || hasTagRemove)) {
     printError('Cannot use --tag with --tag-append or --tag-remove. Use --tag to replace all tags, or --tag-append/--tag-remove to modify existing tags.');
+    return 1;
+  }
+
+  // Check for mutually exclusive requirement options
+  const hasRequireSet = options.require !== undefined && options.require.length > 0;
+  const hasRequireAppend = options.requireAppend !== undefined && options.requireAppend.length > 0;
+  const hasRequireRemove = options.requireRemove !== undefined && options.requireRemove.length > 0;
+  const hasClearRequirements = !!options.clearRequirements;
+
+  if (hasClearRequirements && (hasRequireSet || hasRequireAppend || hasRequireRemove)) {
+    printError('Cannot use --clear-requirements with --require, --require-append, or --require-remove.');
+    return 1;
+  }
+
+  if (hasRequireSet && (hasRequireAppend || hasRequireRemove)) {
+    printError('Cannot use --require with --require-append or --require-remove. Use --require to replace all requirements, or --require-append/--require-remove to modify existing ones.');
     return 1;
   }
 
@@ -130,7 +152,7 @@ export async function editCommand(jobRef, options = {}) {
     const envVars = Array.isArray(options.env)
       ? options.env
       : options.env ? [options.env] : [];
-    
+
     if (envVars.length > 0) {
       updates.env = {};
       for (const envVar of envVars) {
@@ -183,6 +205,31 @@ export async function editCommand(jobRef, options = {}) {
     }
   }
 
+  // Requirements: clear, replace, append, or remove
+  if (hasClearRequirements) {
+    updates.requirements = [];
+  } else if (hasRequireSet) {
+    const validation = validateRequirements(options.require);
+    if (!validation.valid) {
+      printError(`Invalid requirement(s):\n  ${validation.errors.join('\n  ')}`);
+      return 1;
+    }
+    updates.requirements = options.require;
+  } else {
+    if (hasRequireAppend) {
+      const validation = validateRequirements(options.requireAppend);
+      if (!validation.valid) {
+        printError(`Invalid requirement(s):\n  ${validation.errors.join('\n  ')}`);
+        return 1;
+      }
+      updates.requirementsAppend = options.requireAppend;
+    }
+    if (hasRequireRemove) {
+      // No validation on removal — allow removing any stored requirement string.
+      updates.requirementsRemove = options.requireRemove;
+    }
+  }
+
   try {
     // Determine if jobRef is an ID (numeric) or name
     const jobId = parseInt(jobRef, 10);
@@ -214,6 +261,8 @@ export async function editCommand(jobRef, options = {}) {
       if (updatedFields.length > 0) {
         printInfo(`Updated fields: ${updatedFields.join(', ')}`);
       }
+
+      warnUnsupportedRequirements(job.requirements);
 
       return 0;
     }

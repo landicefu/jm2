@@ -6,6 +6,9 @@
 import { getNextRunTime, isValidCronExpression } from '../utils/cron.js';
 import { JobStatus, JobType } from '../core/job.js';
 import { getJobs, saveJobs } from '../core/storage.js';
+import { checkRequirements } from '../core/requirements.js';
+import { createLogger, getLogRotationOptions } from '../core/logger.js';
+import { getJobLogFile } from '../utils/paths.js';
 
 /**
  * Scheduler class - manages job scheduling state and execution timing
@@ -143,7 +146,7 @@ export class Scheduler {
           nextRun = storedDate;
         }
       }
-      
+
       // If nextRun wasn't set from stored value, calculate a new one
       if (!nextRun) {
         nextRun = this.calculateNextRun(job, new Date());
@@ -291,8 +294,11 @@ export class Scheduler {
   /**
    * Execute a job using the executor
    * @param {object} job - Job to execute
+   * @param {object} [options] - Execution options
+   * @param {boolean} [options.ignoreRequirements] - Skip the requirements gate
+   *   (used for manual `jm2 run`, where the user is explicitly forcing execution)
    */
-  async executeJob(job) {
+  async executeJob(job, options = {}) {
     if (!this.executor) {
       this.logger.warn(`Cannot execute job ${job.id}: no executor configured`);
       return;
@@ -309,12 +315,26 @@ export class Scheduler {
       return;
     }
 
+    // Requirements gate: skip the run if any declared requirement is not met.
+    if (!options.ignoreRequirements && job.requirements && job.requirements.length > 0) {
+      const check = await checkRequirements(job.requirements, { job });
+      if (!check.met) {
+        this.handleSkippedJob(job, check);
+        return;
+      }
+      // The run is proceeding; note any requirements that couldn't be evaluated
+      // on this platform (they were treated as met).
+      if (check.unevaluable.length > 0) {
+        this.logUnevaluableRequirements(job, check.unevaluable);
+      }
+    }
+
     this.runningJobs.add(job.id);
     this.logger.info(`Executing job ${job.id} (${job.name || 'unnamed'})`);
 
     try {
       const result = await this.executor.executeJobWithRetry(job);
-      
+
       // Update job stats
       const updatedJob = this.jobs.get(job.id);
       if (updatedJob) {
@@ -327,7 +347,7 @@ export class Scheduler {
       this.logger.info(`Job ${job.id} completed: ${result.status === 'success' ? 'success' : 'failed'}`);
     } catch (error) {
       this.logger.error(`Job ${job.id} failed: ${error.message}`);
-      
+
       const updatedJob = this.jobs.get(job.id);
       if (updatedJob) {
         updatedJob.runCount = (updatedJob.runCount || 0) + 1;
@@ -337,6 +357,68 @@ export class Scheduler {
       }
     } finally {
       this.runningJobs.delete(job.id);
+    }
+  }
+
+  /**
+   * Handle a job whose requirements were not met: log the reason(s) to the
+   * job's own log file (so `jm2 logs <job>` explains the skip), note it in the
+   * daemon log, and record the skip on the job without running it.
+   * @param {object} job - Job that was skipped
+   * @param {{failures: Array<{requirement: string, reason: string}>}} check
+   */
+  handleSkippedJob(job, check) {
+    const summary = check.failures
+      .map(f => `${f.requirement} (${f.reason})`)
+      .join('; ');
+
+    // Write the reason to the job's own log file.
+    try {
+      const jobLogger = createLogger({
+        name: job.name || String(job.id),
+        file: getJobLogFile(job.name || `job-${job.id}`),
+        rotation: getLogRotationOptions(),
+      });
+      for (const failure of check.failures) {
+        jobLogger.warn(`Skipped: requirement '${failure.requirement}' not met (${failure.reason})`);
+      }
+    } catch (error) {
+      this.logger.warn(`Failed to write skip log for job ${job.id}: ${error.message}`);
+    }
+
+    this.logger.info(`Job ${job.id} (${job.name || 'unnamed'}) skipped: requirements not met — ${summary}`);
+
+    // Record the skip on the job (do not increment runCount).
+    const stored = this.jobs.get(job.id);
+    if (stored) {
+      stored.lastResult = 'skipped';
+      stored.lastSkippedAt = new Date().toISOString();
+      stored.lastSkipReason = summary;
+      this.persistJobs();
+    }
+  }
+
+  /**
+   * Note requirements that could not be evaluated on this platform (and were
+   * therefore treated as met). Written to the job's log so it's clear the
+   * requirement did not actually gate the run.
+   * @param {object} job - Job being run
+   * @param {Array<{requirement: string, reason: string}>} unevaluable
+   */
+  logUnevaluableRequirements(job, unevaluable) {
+    try {
+      const jobLogger = createLogger({
+        name: job.name || String(job.id),
+        file: getJobLogFile(job.name || `job-${job.id}`),
+        rotation: getLogRotationOptions(),
+      });
+      for (const item of unevaluable) {
+        jobLogger.info(
+          `Requirement '${item.requirement}' could not be evaluated (${item.reason}) — running anyway`
+        );
+      }
+    } catch (error) {
+      this.logger.warn(`Failed to write requirement note for job ${job.id}: ${error.message}`);
     }
   }
 
@@ -481,27 +563,45 @@ export class Scheduler {
 
     // Handle tag append/remove operations
     let finalTags = job.tags || [];
-    
+
     if (updates.tagsAppend && updates.tagsAppend.length > 0) {
       // Normalize and append new tags
       const tagsToAppend = updates.tagsAppend.map(t => t.trim().toLowerCase());
       finalTags = [...new Set([...finalTags, ...tagsToAppend])];
     }
-    
+
     if (updates.tagsRemove && updates.tagsRemove.length > 0) {
       // Normalize and remove tags
       const tagsToRemove = updates.tagsRemove.map(t => t.trim().toLowerCase());
       finalTags = finalTags.filter(t => !tagsToRemove.includes(t));
     }
 
+    // Handle requirement append/remove operations (case preserved)
+    let finalRequirements = job.requirements || [];
+
+    if (updates.requirementsAppend && updates.requirementsAppend.length > 0) {
+      finalRequirements = [...new Set([...finalRequirements, ...updates.requirementsAppend])];
+    }
+
+    if (updates.requirementsRemove && updates.requirementsRemove.length > 0) {
+      finalRequirements = finalRequirements.filter(r => !updates.requirementsRemove.includes(r));
+    }
+
     // Create a clean updates object without the append/remove markers
     const cleanUpdates = { ...updates };
     delete cleanUpdates.tagsAppend;
     delete cleanUpdates.tagsRemove;
-    
+    delete cleanUpdates.requirementsAppend;
+    delete cleanUpdates.requirementsRemove;
+
     // If we modified tags via append/remove, update the tags field
     if (updates.tagsAppend || updates.tagsRemove) {
       cleanUpdates.tags = finalTags;
+    }
+
+    // If we modified requirements via append/remove, update the requirements field
+    if (updates.requirementsAppend || updates.requirementsRemove) {
+      cleanUpdates.requirements = finalRequirements;
     }
 
     const updatedJob = {
@@ -596,14 +696,14 @@ export class Scheduler {
       ...job,
       nextRun: job.nextRun ? job.nextRun.toISOString() : null,
     }));
-    
+
     // Safety check: don't persist empty jobs array if we had jobs before
     // This prevents accidental data loss during startup/shutdown
     if (jobsArray.length === 0 && this.jobs.size > 0) {
       this.logger.error('BUG: Attempted to save empty jobs array but jobs Map is not empty!');
       return;
     }
-    
+
     saveJobs(jobsArray);
   }
 

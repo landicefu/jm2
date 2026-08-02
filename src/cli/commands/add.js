@@ -5,9 +5,10 @@
 
 import { send } from '../../ipc/client.js';
 import { MessageType } from '../../ipc/protocol.js';
-import { printSuccess, printError, printInfo } from '../utils/output.js';
+import { printSuccess, printError, printInfo, printWarning } from '../utils/output.js';
 import { isDaemonRunning } from '../../daemon/index.js';
 import { parseDateTime, parseRunIn } from '../../utils/datetime.js';
+import { validateRequirements, unsupportedRequirements } from '../../core/requirements.js';
 
 /**
  * Print common examples of JM2 add command
@@ -84,17 +85,17 @@ export async function addCommand(command, options = {}) {
 
     // Handle scheduling options
     const { cron, at, delay } = options;
-    
+
     if (cron && at) {
       printError('Cannot specify both --cron and --at');
       return 1;
     }
-    
+
     if (cron && delay) {
       printError('Cannot specify both --cron and --delay');
       return 1;
     }
-    
+
     if (at && delay) {
       printError('Cannot specify both --at and --delay');
       return 1;
@@ -136,8 +137,8 @@ export async function addCommand(command, options = {}) {
 
     if (options.tag) {
       // Handle multiple tags
-      const tags = Array.isArray(options.tag) 
-        ? options.tag 
+      const tags = Array.isArray(options.tag)
+        ? options.tag
         : [options.tag];
       jobData.tags = tags;
     }
@@ -147,8 +148,8 @@ export async function addCommand(command, options = {}) {
 
     if (options.env) {
       // Parse env options (format: KEY=value)
-      const envVars = Array.isArray(options.env) 
-        ? options.env 
+      const envVars = Array.isArray(options.env)
+        ? options.env
         : [options.env];
       jobData.env = {};
       for (const envVar of envVars) {
@@ -171,9 +172,18 @@ export async function addCommand(command, options = {}) {
       }
     }
 
+    if (options.require && options.require.length > 0) {
+      const validation = validateRequirements(options.require);
+      if (!validation.valid) {
+        printError(`Invalid requirement(s):\n  ${validation.errors.join('\n  ')}`);
+        return 1;
+      }
+      jobData.requirements = options.require;
+    }
+
     // Send to daemon
     printInfo('Adding job...');
-    
+
     const response = await send({
       type: MessageType.JOB_ADD,
       jobData,
@@ -187,14 +197,16 @@ export async function addCommand(command, options = {}) {
     if (response.type === MessageType.JOB_ADDED && response.job) {
       const job = response.job;
       printSuccess(`Job added: ${job.name || job.id}`);
-      
+
       if (job.cron) {
         printInfo(`Schedule: ${job.cron}`);
       } else if (job.runAt) {
         const runDate = new Date(job.runAt);
         printInfo(`Scheduled for: ${runDate.toLocaleString()}`);
       }
-      
+
+      warnUnsupportedRequirements(job.requirements);
+
       return 0;
     }
 
@@ -203,6 +215,20 @@ export async function addCommand(command, options = {}) {
   } catch (error) {
     printError(`Failed to add job: ${error.message}`);
     return 1;
+  }
+}
+
+/**
+ * Warn about requirements that are not detectable on the current platform.
+ * Such requirements are treated as met, so the job still runs — this makes the
+ * "does nothing here" behavior visible instead of silent.
+ * @param {Array<string>} requirements
+ */
+export function warnUnsupportedRequirements(requirements) {
+  for (const { requirement } of unsupportedRequirements(requirements)) {
+    printWarning(
+      `Requirement '${requirement}' is not detectable on ${process.platform} — it will be treated as met (the job will still run).`
+    );
   }
 }
 
