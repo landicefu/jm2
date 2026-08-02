@@ -287,6 +287,7 @@ jm2 run 1
 
 Options:
 - `--wait, -w` - Wait for job to complete and show output
+- `--check-requirements` - Honor the job's run requirements; skip (with reason) if any is unmet instead of forcing execution
 
 #### `jm2 edit <id|name>`
 Edit an existing job's configuration.
@@ -420,7 +421,7 @@ Behavior:
 - **Skip is per-run.** A cron job waits for its next scheduled time; a one-time (`--at`/`--in`) job is marked skipped and will not run.
 - **Unevaluable requirements run anyway.** If a requirement cannot be checked on the current machine, it is treated as met.
 - **`script:` errors skip.** If an inline script throws, times out (5s), or has a syntax error, the requirement is treated as **not met**. The script may `return` a value or be a bare expression, and receives `require`, `process`, `os`, `job`, and `console`.
-- **Manual `jm2 run` bypasses requirements** — an explicit run always executes.
+- **Manual `jm2 run` bypasses requirements** by default — an explicit run executes immediately. Pass `--check-requirements` to make it honor the gate (it will skip, with a logged reason, if unmet).
 
 Examples:
 

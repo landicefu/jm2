@@ -178,7 +178,7 @@ daemon notes it in the job's log at run time.
   syntax error, the requirement is treated as **not met** (the run is skipped).
   The script may `return` a value or be a bare expression, and receives `require`,
   `process`, `os`, `job`, and `console`.
-- **Manual `jm2 run` bypasses requirements** — an explicit run always executes.
+- **Manual `jm2 run` bypasses requirements** by default — an explicit run executes immediately. Pass `--check-requirements` to make it honor the gate (it will skip, with a logged reason, if unmet).
 
 ### Examples
 
@@ -289,6 +289,7 @@ Trigger a job to run immediately (out of schedule).
 | Option | Description |
 |--------|-------------|
 | `-w, --wait` | Wait for completion and print output |
+| `--check-requirements` | Honor the job's run requirements; skip (with reason) if any is unmet instead of forcing execution |
 
 ---
 

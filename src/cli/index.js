@@ -67,7 +67,7 @@ Run Requirements (skip a scheduled run unless the condition holds):
   * Windows VPN detection is best-effort.
   A requirement not supported on the current OS is treated as met (the job still
   runs); 'jm2 add'/'jm2 edit' warn you when a requirement won't apply here.
-  Manual 'jm2 run' ignores requirements.
+  Manual 'jm2 run' ignores requirements unless you pass --check-requirements.
 `;
 
 /**
@@ -204,6 +204,7 @@ export async function runCli() {
     .command('run <job>')
     .description('Run a job manually')
     .option('-w, --wait', 'Wait for job to complete and show output', false)
+    .option('--check-requirements', "Honor the job's run requirements; skip (with reason) if any is unmet instead of forcing execution", false)
     .action(async (job, options) => {
       const exitCode = await runCommand(job, options);
       process.exit(exitCode);

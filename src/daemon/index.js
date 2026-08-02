@@ -10,6 +10,7 @@ import { dirname, join } from 'node:path';
 import { getPidFile, ensureDataDir, getSocketPath, getLogsDir, getJobLogFile, getDaemonLogFile } from '../utils/paths.js';
 import { getJobs, saveJobs, getHistory, saveHistory } from '../core/storage.js';
 import { getConfig } from '../core/config.js';
+import { checkRequirements } from '../core/requirements.js';
 import { createDaemonLogger } from '../core/logger.js';
 import { startIpcServer, stopIpcServer } from '../ipc/server.js';
 import { createScheduler } from './scheduler.js';
@@ -779,6 +780,25 @@ async function handleJobRun(message, socket) {
     }
 
     logger?.info(`Manual job run requested via IPC: ${jobId}`);
+
+    // Optionally honor the job's requirements (opt-in via --check-requirements).
+    // By default a manual run bypasses them.
+    if (message.checkRequirements && job.requirements && job.requirements.length > 0) {
+      const check = await checkRequirements(job.requirements, { job });
+      if (!check.met) {
+        scheduler.handleSkippedJob(job, check);
+        const reason = check.failures.map(f => `${f.requirement} (${f.reason})`).join('; ');
+        return createJobRunResponse({
+          jobId,
+          status: 'skipped',
+          reason,
+          message: `Requirements not met: ${reason}`,
+        });
+      }
+      if (check.unevaluable.length > 0) {
+        scheduler.logUnevaluableRequirements(job, check.unevaluable);
+      }
+    }
 
     // Execute the job
     if (message.wait) {

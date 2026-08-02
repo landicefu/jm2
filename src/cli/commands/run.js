@@ -5,7 +5,7 @@
 
 import { send, sendWithStream } from '../../ipc/client.js';
 import { MessageType } from '../../ipc/protocol.js';
-import { printSuccess, printError, printInfo } from '../utils/output.js';
+import { printSuccess, printError, printInfo, printWarning } from '../utils/output.js';
 import { isDaemonRunning } from '../../daemon/index.js';
 
 /**
@@ -29,9 +29,10 @@ export async function runCommand(jobRef, options = {}) {
   try {
     // Determine if jobRef is an ID (numeric) or name
     const jobId = parseInt(jobRef, 10);
+    const runFields = { wait: options.wait, checkRequirements: options.checkRequirements };
     const message = isNaN(jobId)
-      ? { type: MessageType.JOB_RUN, jobName: jobRef, wait: options.wait }
-      : { type: MessageType.JOB_RUN, jobId, wait: options.wait };
+      ? { type: MessageType.JOB_RUN, jobName: jobRef, ...runFields }
+      : { type: MessageType.JOB_RUN, jobId, ...runFields };
 
     printInfo(`Running job: ${jobRef}...`);
 
@@ -55,6 +56,11 @@ export async function runCommand(jobRef, options = {}) {
 
       if (response.type === MessageType.JOB_RUN_RESULT) {
         const result = response.result;
+
+        if (result.status === 'skipped') {
+          printWarning(`Job skipped: ${result.reason || result.message}`);
+          return 0;
+        }
 
         if (result.error) {
           printError(`Job execution failed: ${result.error}`);
@@ -87,6 +93,10 @@ export async function runCommand(jobRef, options = {}) {
 
       if (response.type === MessageType.JOB_RUN_RESULT) {
         const result = response.result;
+        if (result.status === 'skipped') {
+          printWarning(`Job skipped: ${result.reason || result.message}`);
+          return 0;
+        }
         printSuccess(`Job queued for execution (ID: ${result.jobId || jobRef})`);
         printInfo('Use --wait to wait for completion and see output');
         return 0;
