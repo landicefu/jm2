@@ -5,6 +5,8 @@
 
 import {
   installService,
+  repairService,
+  checkService,
   getServiceStatus,
   isElevated,
   ServiceType,
@@ -33,8 +35,28 @@ export async function installCommand(options = {}) {
   // Check current status
   const status = getServiceStatus(type);
   if (status.installed) {
+    const problems = checkService(type);
+    if (problems.length > 0) {
+      printWarning(`JM2 service is installed (${type} level) but its configuration is stale:`);
+      for (const problem of problems) {
+        printWarning(`  - ${problem}`);
+      }
+      printInfo('Repairing service configuration...');
+      const repaired = await repairService(type);
+      if (!repaired.success) {
+        printError(repaired.message);
+        return 1;
+      }
+      printSuccess(repaired.message);
+      printInfo('Service will start automatically on boot.');
+      return 0;
+    }
+
     printWarning(`JM2 service is already installed (${type} level).`);
-    printInfo(`Service status: ${status.running ? 'running' : 'stopped'}`);
+    printInfo(`Daemon status: ${status.running ? 'running' : 'stopped'}`);
+    if (!status.running) {
+      printInfo('Start it with: jm2 start');
+    }
     printInfo('Use "jm2 uninstall" first if you want to reinstall.');
     return 1;
   }

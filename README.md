@@ -104,6 +104,22 @@ Jobs:       15 total (10 active, 5 paused)
 Executed:   1,234 runs today
 ```
 
+#### `jm2 install` / `jm2 uninstall`
+Register the daemon to start automatically on boot (launchd on macOS, systemd on Linux, a service on Windows).
+
+```bash
+# Install for the current user (default)
+jm2 install
+
+# Install system-wide (requires sudo/admin)
+jm2 install --system
+
+# Remove the boot service
+jm2 uninstall
+```
+
+The service records which `node` to run. jm2 uses a stable path such as `/opt/homebrew/bin/node` instead of a versioned one like `/opt/homebrew/Cellar/node/<version>/bin/node`, so upgrading Node does not break auto-start. If an installed service points to a node or jm2 path that no longer exists or has changed, run `jm2 install` again. It detects the stale configuration and repairs it in place, so you don't have to uninstall first.
+
 ### Job Management
 
 #### `jm2 add <command>`

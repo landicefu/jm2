@@ -5,7 +5,7 @@
  */
 
 import { homedir } from 'node:os';
-import { join, dirname } from 'node:path';
+import { join, dirname, delimiter, isAbsolute } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import {
   writeFileSync,
@@ -13,10 +13,11 @@ import {
   existsSync,
   unlinkSync,
   mkdirSync,
+  realpathSync,
   constants
 } from 'node:fs';
 import { spawn, execSync } from 'node:child_process';
-import { getDataDir, getLogsDir } from '../utils/paths.js';
+import { getDataDir, getLogsDir, getPidFile } from '../utils/paths.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
@@ -95,10 +96,93 @@ function getJm2Path() {
 
 /**
  * Get Node.js executable path
+ *
+ * process.execPath is fully resolved, so under version managers such as
+ * Homebrew it points into a versioned directory (e.g.
+ * /opt/homebrew/Cellar/node/25.5.0/bin/node) that disappears on upgrade.
+ * Prefer a `node` on PATH that resolves to the same binary, since that
+ * path (e.g. /opt/homebrew/bin/node) survives upgrades.
+ *
+ * @param {string} [execPath] - Resolved node executable path
+ * @param {string} [pathEnv] - PATH environment variable
  * @returns {string} Path to node executable
  */
-function getNodePath() {
-  return process.execPath;
+export function getNodePath(execPath = process.execPath, pathEnv = process.env.PATH || '') {
+  if (process.platform === Platform.WIN32) {
+    return execPath;
+  }
+
+  let target;
+  try {
+    target = realpathSync(execPath);
+  } catch {
+    return execPath;
+  }
+
+  for (const dir of pathEnv.split(delimiter)) {
+    if (!dir || !isAbsolute(dir)) {
+      continue;
+    }
+    const candidate = join(dir, 'node');
+    if (candidate === execPath) {
+      return execPath;
+    }
+    try {
+      if (realpathSync(candidate) === target) {
+        return candidate;
+      }
+    } catch {
+      // Not present in this directory
+    }
+  }
+
+  return execPath;
+}
+
+/**
+ * Check whether the daemon process recorded in the PID file is alive
+ * @returns {boolean}
+ */
+function isDaemonProcessRunning() {
+  try {
+    const pid = parseInt(readFileSync(getPidFile(), 'utf8'), 10);
+    if (isNaN(pid)) {
+      return false;
+    }
+    process.kill(pid, 0);
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+/**
+ * Find problems with an installed service's executable paths
+ * @param {{nodePath: string, jm2Path: string}|null} installed - Paths read from the installed config
+ * @returns {string[]} Human-readable problems, empty if healthy
+ */
+function findPathProblems(installed) {
+  if (!installed) {
+    return ['Could not read node/jm2 paths from the installed service config'];
+  }
+
+  const problems = [];
+  const nodePath = getNodePath();
+  const jm2Path = getJm2Path();
+
+  if (!existsSync(installed.nodePath)) {
+    problems.push(`Node executable no longer exists: ${installed.nodePath}`);
+  } else if (installed.nodePath !== nodePath) {
+    problems.push(`Node path changed: ${installed.nodePath} -> ${nodePath}`);
+  }
+
+  if (!existsSync(installed.jm2Path)) {
+    problems.push(`jm2 entry point no longer exists: ${installed.jm2Path}`);
+  } else if (installed.jm2Path !== jm2Path) {
+    problems.push(`jm2 path changed: ${installed.jm2Path} -> ${jm2Path}`);
+  }
+
+  return problems;
 }
 
 /**
@@ -139,6 +223,27 @@ class PlatformService {
    */
   getStatus(type) {
     throw new Error('Not implemented');
+  }
+
+  /**
+   * Read node/jm2 paths from the installed service config
+   * @param {string} type - Service type (user or system)
+   * @returns {{nodePath: string, jm2Path: string}|null}
+   */
+  readInstalledPaths(type) {
+    return null;
+  }
+
+  /**
+   * Check an installed service for stale configuration
+   * @param {string} type - Service type (user or system)
+   * @returns {string[]} Problems found, empty if healthy
+   */
+  check(type) {
+    if (!this.isInstalled(type)) {
+      return [];
+    }
+    return findPathProblems(this.readInstalledPaths(type));
   }
 }
 
@@ -295,22 +400,28 @@ class DarwinService extends PlatformService {
     return existsSync(plistPath);
   }
 
+  readInstalledPaths(type) {
+    try {
+      const plist = readFileSync(this.getPlistPath(type), 'utf8');
+      const args = plist.match(/<key>ProgramArguments<\/key>\s*<array>([\s\S]*?)<\/array>/);
+      if (!args) {
+        return null;
+      }
+      const strings = [...args[1].matchAll(/<string>([^<]*)<\/string>/g)].map(m => m[1]);
+      if (strings.length < 2) {
+        return null;
+      }
+      return { nodePath: strings[0], jm2Path: strings[1] };
+    } catch {
+      return null;
+    }
+  }
+
   getStatus(type) {
     const installed = this.isInstalled(type);
-    let running = false;
-
-    if (installed) {
-      try {
-        const result = execSync('launchctl list | grep com.jm2.daemon', {
-          encoding: 'utf8',
-          stdio: ['pipe', 'pipe', 'ignore']
-        });
-        running = result.includes('com.jm2.daemon');
-      } catch {
-        running = false;
-      }
-    }
-
+    // launchd runs `jm2 start`, which daemonizes and exits, so the launchd
+    // job never holds a PID. Check the daemon process itself instead.
+    const running = installed && isDaemonProcessRunning();
     return { installed, running };
   }
 }
@@ -462,6 +573,16 @@ WantedBy=${type === ServiceType.USER ? 'default.target' : 'multi-user.target'}
     return existsSync(servicePath);
   }
 
+  readInstalledPaths(type) {
+    try {
+      const service = readFileSync(this.getServicePath(type), 'utf8');
+      const match = service.match(/^ExecStart=(\S+) (\S+) start$/m);
+      return match ? { nodePath: match[1], jm2Path: match[2] } : null;
+    } catch {
+      return null;
+    }
+  }
+
   getStatus(type) {
     const installed = this.isInstalled(type);
     let running = false;
@@ -593,6 +714,16 @@ set "JM2_DATA_DIR=${dataDir}"
     }
   }
 
+  readInstalledPaths(type) {
+    try {
+      const wrapper = readFileSync(this.getWrapperPath(), 'utf8');
+      const match = wrapper.match(/^"([^"]+)" "([^"]+)" start/m);
+      return match ? { nodePath: match[1], jm2Path: match[2] } : null;
+    } catch {
+      return null;
+    }
+  }
+
   isInstalled(type) {
     try {
       const serviceName = this.getServiceName();
@@ -649,6 +780,35 @@ export async function uninstallService(type = ServiceType.USER) {
 export function getServiceStatus(type = ServiceType.USER) {
   const service = getPlatformService();
   return service.getStatus(type);
+}
+
+/**
+ * Check an installed service for stale configuration, such as a node
+ * executable that was removed by a version upgrade
+ * @param {string} type - Service type: 'user' or 'system'
+ * @returns {string[]} Problems found, empty if healthy or not installed
+ */
+export function checkService(type = ServiceType.USER) {
+  const service = getPlatformService();
+  return service.check(type);
+}
+
+/**
+ * Reinstall the service with freshly generated configuration
+ * @param {string} type - Service type: 'user' or 'system'
+ * @returns {Promise<{success: boolean, message: string}>}
+ */
+export async function repairService(type = ServiceType.USER) {
+  const service = getPlatformService();
+  const removed = await service.uninstall(type);
+  if (!removed.success) {
+    return removed;
+  }
+  const result = await service.install(type);
+  if (result.success) {
+    return { success: true, message: 'JM2 service configuration repaired.' };
+  }
+  return result;
 }
 
 /**
