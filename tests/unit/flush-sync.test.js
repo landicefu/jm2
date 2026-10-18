@@ -7,18 +7,19 @@ import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import { createScheduler } from '../../src/daemon/scheduler.js';
 import { saveJobs, getJobs } from '../../src/core/storage.js';
 import { JobStatus, JobType } from '../../src/core/job.js';
-import { unlinkSync, existsSync } from 'node:fs';
-import { getJobsFile } from '../../src/utils/paths.js';
+import { mkdtempSync, rmSync } from 'node:fs';
+import { join } from 'node:path';
+import { tmpdir } from 'node:os';
 
 describe('Flush command scheduler sync', () => {
   let scheduler;
-  const testJobsFile = getJobsFile();
+  let testDataDir;
+  const originalEnv = process.env.JM2_DATA_DIR;
 
   beforeEach(() => {
-    // Clean up any existing jobs file
-    if (existsSync(testJobsFile)) {
-      unlinkSync(testJobsFile);
-    }
+    // Use an isolated data directory so the real ~/.jm2/jobs.json is never touched
+    testDataDir = mkdtempSync(join(tmpdir(), 'jm2-flush-sync-'));
+    process.env.JM2_DATA_DIR = testDataDir;
 
     // Create a fresh scheduler
     scheduler = createScheduler({
@@ -35,10 +36,12 @@ describe('Flush command scheduler sync', () => {
     if (scheduler) {
       scheduler.stop();
     }
-    // Clean up test jobs file
-    if (existsSync(testJobsFile)) {
-      unlinkSync(testJobsFile);
+    if (originalEnv !== undefined) {
+      process.env.JM2_DATA_DIR = originalEnv;
+    } else {
+      delete process.env.JM2_DATA_DIR;
     }
+    rmSync(testDataDir, { recursive: true, force: true });
   });
 
   it('should sync scheduler memory after flushing completed one-time jobs', () => {
